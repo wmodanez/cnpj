@@ -332,7 +332,7 @@ class PainelProcessor(BaseProcessor):
                 raise
             
             # 2. Otimizar consultas selecionando apenas colunas necessárias
-            colunas_estabelecimentos = ['cnpj_basico', 'matriz_filial', 'codigo_situacao', 
+            colunas_estabelecimentos = ['cnpj_basico', 'cnpj_completo', 'matriz_filial', 'codigo_situacao', 
                                       'data_situacao_cadastral', 'codigo_motivo', 
                                       'data_inicio_atividades', 'codigo_cnae', 'tipo_situacao_cadastral',
                                       'codigo_municipio']
@@ -385,10 +385,64 @@ class PainelProcessor(BaseProcessor):
             except Exception as e:
                 self.logger.warning(f"  └─ Erro ao verificar/calcular tipo_situacao_cadastral: {str(e)}")
             
+            # Verificar se o campo cnpj_completo existe e, se não, calculá-lo
+            try:
+                # Verificar se o campo existe nos dados
+                colunas_disponiveis = estabelecimentos_scan.collect().limit(1).columns
+                
+                if 'cnpj_completo' not in colunas_disponiveis:
+                    self.logger.info("  └─ Campo cnpj_completo não encontrado, verificando se é possível calculá-lo...")
+                    
+                    # Verificar se temos as colunas necessárias para calcular o CNPJ completo
+                    if all(col in colunas_disponiveis for col in ['cnpj_basico', 'cnpj_ordem', 'cnpj_dv']):
+                        self.logger.info("  └─ Colunas necessárias encontradas, calculando cnpj_completo...")
+                        
+                        # Calcular o CNPJ completo a partir das partes
+                        estabelecimentos_scan = estabelecimentos_scan.with_columns([
+                            pl.col('cnpj_basico').cast(pl.Utf8).str.pad_start(8, '0').alias('_cnpj_basico_temp'),
+                            pl.col('cnpj_ordem').cast(pl.Utf8).str.replace_all(r'[^\d]', '').str.pad_start(4, '0').alias('_cnpj_ordem_temp'),
+                            pl.col('cnpj_dv').cast(pl.Utf8).str.replace_all(r'[^\d]', '').str.pad_start(2, '0').alias('_cnpj_dv_temp')
+                        ])
+                        
+                        # Criar CNPJ completo
+                        estabelecimentos_scan = estabelecimentos_scan.with_columns([
+                            (pl.col('_cnpj_basico_temp') + pl.col('_cnpj_ordem_temp') + pl.col('_cnpj_dv_temp')).alias('cnpj_completo')
+                        ])
+                        
+                        # Remover colunas auxiliares temporárias
+                        estabelecimentos_scan = estabelecimentos_scan.drop(['_cnpj_basico_temp', '_cnpj_ordem_temp', '_cnpj_dv_temp'])
+                        
+                        self.logger.info("  └─ Campo cnpj_completo calculado com sucesso")
+                    else:
+                        self.logger.warning("  └─ Colunas necessárias para calcular cnpj_completo não encontradas (cnpj_basico, cnpj_ordem, cnpj_dv)")
+                        # Criar campo vazio para manter compatibilidade
+                        estabelecimentos_scan = estabelecimentos_scan.with_columns([
+                            pl.lit(None).alias('cnpj_completo')
+                        ])
+                else:
+                    self.logger.info("  └─ Campo cnpj_completo já existe nos dados")
+                
+            except Exception as e:
+                self.logger.warning(f"  └─ Erro ao verificar/calcular cnpj_completo: {str(e)}")
+                # Criar campo vazio para manter compatibilidade
+                estabelecimentos_scan = estabelecimentos_scan.with_columns([
+                    pl.lit(None).alias('cnpj_completo')
+                ])
+            
             # Agora selecionar as colunas e aplicar transformações
+            # Primeiro, verificar quais colunas realmente existem
+            colunas_reais = estabelecimentos_scan.collect().limit(1).columns
+            colunas_para_selecionar = [col for col in colunas_estabelecimentos if col in colunas_reais]
+            
+            # Garantir que cnpj_completo seja incluído se foi calculado
+            if 'cnpj_completo' in colunas_reais and 'cnpj_completo' not in colunas_para_selecionar:
+                colunas_para_selecionar.append('cnpj_completo')
+            
+            self.logger.info(f"  └─ Selecionando colunas: {colunas_para_selecionar}")
+            
             estabelecimentos_scan = (
                 estabelecimentos_scan
-                .select(colunas_estabelecimentos)
+                .select(colunas_para_selecionar)
                 .with_columns([
                     pl.when(pl.col('matriz_filial') == 1)
                     .then(pl.lit('Matriz'))
@@ -638,10 +692,13 @@ class PainelProcessor(BaseProcessor):
                 self.logger.info(f"💾 Iniciando gravação dos dados transformados...")
                 
                 try:
+                    # Selecionar colunas diretamente (vai falhar se não existir, mas isso é melhor que travar)
+                    self.logger.info(f"  └─ Selecionando colunas para o resultado final...")
+                    
                     # Reordenar colunas para aproximar códigos e descrições
                     colunas_para_selecionar = [
                         # Dados principais
-                        'cnpj_basico',
+                        'cnpj_basico', 'cnpj_completo',
                         
                         # Matriz/Filial
                         'matriz_filial', 'descricao_matriz_filial',
@@ -673,9 +730,6 @@ class PainelProcessor(BaseProcessor):
                         'codigo_ibge', 'nome_municipio', 'uf', 'sigla_uf'
                     ]
                     
-                    # Selecionar colunas diretamente (vai falhar se não existir, mas isso é melhor que travar)
-                    self.logger.info(f"  └─ Selecionando colunas para o resultado final...")
-                    
                     try:
                         painel_scan = painel_scan.select(colunas_para_selecionar)
                         self.logger.info(f"  └─ {len(colunas_para_selecionar)} colunas selecionadas com sucesso")
@@ -683,7 +737,7 @@ class PainelProcessor(BaseProcessor):
                         self.logger.warning(f"  └─ Erro ao selecionar algumas colunas: {str(e)}")
                         # Fallback: selecionar apenas colunas básicas se houver erro
                         colunas_basicas = [
-                            'cnpj_basico', 'matriz_filial', 'codigo_situacao', 'data_situacao_cadastral',
+                            'cnpj_basico', 'cnpj_completo', 'matriz_filial', 'codigo_situacao', 'data_situacao_cadastral',
                             'codigo_motivo', 'data_inicio_atividades', 'codigo_cnae', 'natureza_juridica',
                             'porte_empresa', 'opcao_simples', 'data_opcao_simples', 'data_exclusao_simples',
                             'opcao_mei', 'data_opcao_mei', 'data_exclusao_mei'
