@@ -642,7 +642,157 @@ async def async_main():
             logger.info("=" * 50)
             
             return False, ""
-    
+
+     # 🆕 CORREÇÃO: Adicionar bloco para --step download
+    elif args.step == 'download':
+        print_header("Etapa 1: Apenas Download de Arquivos")
+
+        # Determinar pasta remota a usar
+        if args.remote_folder:
+            latest_folder = args.remote_folder
+            logger.info(f"Usando pasta remota especificada: {latest_folder}")
+        else:
+            # Obter pasta mais recente
+            from src.async_downloader import get_latest_remote_folder
+            base_url = os.getenv('BASE_URL', 'https://dados.rfb.gov.br/CNPJ/')
+            latest_folder = await get_latest_remote_folder(base_url)
+            if not latest_folder:
+                logger.error("Não foi possível determinar a pasta remota mais recente. Use --remote-folder.")
+                return False, ""
+            logger.info(f"Pasta remota mais recente: {latest_folder}")
+
+        # Definir caminho de destino dos ZIPs
+        source_zip_path = os.path.join(PATH_ZIP, latest_folder)
+        os.makedirs(source_zip_path, exist_ok=True)
+        logger.info(f"Arquivos ZIP serão salvos em: {source_zip_path}")
+
+        # Obter URLs dos arquivos da pasta remota
+        from src.async_downloader import get_latest_month_zip_urls, _filter_urls_by_type
+        
+        base_url = os.getenv('BASE_URL')
+        if not base_url:
+            logger.error("BASE_URL não definida no arquivo .env")
+            return False, ""
+            
+        zip_urls, _ = get_latest_month_zip_urls(base_url, latest_folder)
+            
+        # Filtrar URLs por tipos desejados, se especificado
+        if args.tipos:
+            zip_urls, ignored = _filter_urls_by_type(zip_urls, tuple(args.tipos))
+            logger.info(f"Filtrados {ignored} URLs. Restaram {len(zip_urls)} URLs para download.")
+
+        # Executar apenas o download
+        download_start_time = time.time()
+        
+        downloaded_files, failed_downloads = await download_only_files(
+            urls=zip_urls,
+            path_zip=source_zip_path,
+            force_download=args.force_download,
+            show_progress_bar=not args.quiet,
+            show_pending_files=args.verbose_ui
+        )
+        
+        download_time = time.time() - download_start_time
+        
+        if not failed_downloads:
+            print_success(f"Download de {len(downloaded_files)} arquivos concluído com sucesso em {format_elapsed_time(download_time)}")
+            overall_success = True
+        else:
+            print_error(f"Download concluído com {len(failed_downloads)} falhas em {format_elapsed_time(download_time)}")
+            overall_success = False
+
+            return False, ""
+
+    # 🆕 CORREÇÃO: Adicionar bloco para --step process
+    elif args.step == 'process':
+        print_header("Etapa 2: Apenas Processamento de Arquivos")
+
+        if not args.source_zip_folder:
+            logger.error("Para a etapa 'process', o argumento --source-zip-folder é obrigatório.")
+            return False, ""
+        
+        if not args.output_subfolder:
+            logger.error("Para a etapa 'process', o argumento --output-subfolder é obrigatório.")
+            return False, ""
+
+        source_zip_path = args.source_zip_folder
+        output_parquet_path = os.path.join(PATH_PARQUET, args.output_subfolder)
+        os.makedirs(output_parquet_path, exist_ok=True)
+
+        logger.info(f"Processando arquivos de: {source_zip_path}")
+        logger.info(f"Salvando Parquets em: {output_parquet_path}")
+
+        # Obter lista de arquivos ZIP para processar
+        try:
+            zip_files = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')]
+        except FileNotFoundError:
+            logger.error(f"Pasta de origem dos ZIPs não encontrada: {source_zip_path}")
+            return False, ""
+
+        # Filtrar por tipos, se especificado
+        tipos_a_processar = args.tipos if args.tipos else ['empresas', 'estabelecimentos', 'simples', 'socios']
+        
+        # Mapear tipo para prefixo de arquivo
+        tipo_map = {'empresas': 'Empre', 'estabelecimentos': 'Estabele', 'simples': 'Simples', 'socios': 'Socio'}
+        urls_para_processar = []
+        for tipo in tipos_a_processar:
+            prefixo = tipo_map.get(tipo)
+            if prefixo:
+                urls_para_processar.extend([os.path.join(source_zip_path, f) for f in zip_files if f.startswith(prefixo)])
+
+        if not urls_para_processar:
+            logger.warning("Nenhum arquivo ZIP correspondente aos tipos especificados foi encontrado para processar.")
+            return True, args.output_subfolder
+
+        # Executar pipeline de processamento
+        process_start_time = time.time()
+        process_results = await optimized_download_and_process_pipeline(
+            urls=urls_para_processar, # A função usa as URLs para obter os nomes dos arquivos
+            source_zip_path=source_zip_path,
+            unzip_path=PATH_UNZIP,
+            output_parquet_path=output_parquet_path,
+            tipos_a_processar=tipos_a_processar,
+            delete_zips_after_extract=args.delete_zips_after_extract,
+            force_download=True # Força o processamento, já que o download é pulado
+        )
+        process_time = time.time() - process_start_time
+
+        if process_results.get('all_ok', False):
+            print_success(f"Processamento concluído com sucesso em {format_elapsed_time(process_time)}")
+        else:
+            print_error("Falha durante o processamento. Verifique os logs.")
+            overall_success = False
+            return False, ""
+
+    # 🆕 CORREÇÃO: Adicionar bloco para --step database
+    elif args.step == 'database':
+        print_header("Etapa 3: Apenas Criação do Banco de Dados")
+
+        if not args.output_subfolder:
+            logger.error("Para a etapa 'database', o argumento --output-subfolder é obrigatório.")
+            return False, ""
+
+        output_parquet_path = os.path.join(PATH_PARQUET, args.output_subfolder)
+        if not os.path.exists(output_parquet_path):
+            logger.error(f"Pasta de origem dos Parquets não encontrada: {output_parquet_path}")
+            return False, ""
+
+        db_start_time = time.time()
+        backup_path = None if args.no_backup else PATH_REMOTE_PARQUET
+        db_success = create_duckdb_file(output_parquet_path, FILE_DB_PARQUET, backup_path)
+        db_time = time.time() - db_start_time
+
+        if db_success:
+            print_success(f"Banco de dados criado com sucesso em {format_elapsed_time(db_time)}")
+            if args.cleanup_after_db or args.cleanup_all_after_db:
+                cleanup_success = cleanup_after_database(output_parquet_path, "", True, False)
+                if not cleanup_success:
+                    print_warning("Falha ao limpar arquivos parquet.")
+        else:
+            print_error("Falha ao criar o banco de dados.")
+            overall_success = False
+            return False, ""
+   
     # Se chegou até aqui após processamento bem-sucedido, usar pipeline otimizado
     if args.step == 'all':
         remote_folder_param = args.remote_folder if args.remote_folder else None
@@ -869,18 +1019,7 @@ async def async_main():
     
     # Exibir relatório detalhado de estatísticas
     global_stats.print_detailed_report()
-    
-    # Salvar estatísticas em arquivo
-    try:
-        stats_filename = f"estatisticas_cnpj_{time.strftime('%Y%m%d_%H%M%S')}.json"
-        stats_path = os.path.join("logs", stats_filename)
-        os.makedirs("logs", exist_ok=True)
-        global_stats.save_to_json(stats_path)
-        print(f"\n📄 Estatísticas detalhadas salvas em: {stats_path}")
-        logger.info(f"📄 Estatísticas detalhadas salvas em: {stats_path}")
-    except Exception as e:
-        logger.error(f"Erro ao salvar estatísticas: {e}")
-    
+        
     return overall_success, latest_folder
 
 def process_painel_complete(source_zip_path: str, unzip_path: str, output_parquet_path: str, 
