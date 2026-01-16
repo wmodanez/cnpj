@@ -11,6 +11,7 @@ include README_Painel_Processor.md
 
 # Incluir requisitos
 include requirements.txt
+include main.py
 
 # Incluir arquivos de configuração
 include Dockerfile

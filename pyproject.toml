@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cnpj-processor"
-version = "3.5.0"
+version = "3.5.1"
 description = "Sistema automatizado de download, processamento e armazenamento de dados públicos de CNPJ da Receita Federal"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -91,6 +91,7 @@ cnpj = "cnpj_processor.main:main"
 zip-safe = false
 include-package-data = true
 packages = ["cnpj_processor", "cnpj_processor.Entity", "cnpj_processor.Entity.schemas", "cnpj_processor.Entity.validation", "cnpj_processor.process", "cnpj_processor.process.base", "cnpj_processor.process.processors", "cnpj_processor.utils"]
+py-modules = ["main"]
 
 [tool.setuptools.package-data]
 cnpj_processor = ["*.md", "*.txt"]
