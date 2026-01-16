@@ -30,7 +30,7 @@ class SimplesSchema(BaseModel):
     
     class Config:
         """Configuração do modelo."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "cnpj_basico": 12345678,
                 "opcao_simples": "S",

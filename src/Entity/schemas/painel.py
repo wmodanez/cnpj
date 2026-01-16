@@ -73,7 +73,7 @@ class PainelSchema(BaseModel):
         """Configuração do schema."""
         from_attributes = True
         arbitrary_types_allowed = True
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "cnpj_basico": 12345678,
                 "matriz_filial": 1,

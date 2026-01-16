@@ -28,7 +28,7 @@ class EstabelecimentoSchema(BaseModel):
     
     class Config:
         """Configuração do modelo."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "cnpj_basico": 12345678,
                 "cnpj_ordem": "0001",
