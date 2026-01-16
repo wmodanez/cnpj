@@ -1,0 +1,46 @@
+# MANIFEST.in
+# Este arquivo especifica quais arquivos adicionais devem ser incluídos no pacote distribuível
+
+# Incluir documentação
+include README.md
+include LICENSE
+include VERSIONAMENTO.md
+include ATALHOS.md
+include README_ATALHOS.md
+include README_Painel_Processor.md
+
+# Incluir requisitos
+include requirements.txt
+
+# Incluir arquivos de configuração
+include Dockerfile
+include setup_env.py
+
+# Incluir documentação da pasta docs
+recursive-include docs *.md
+recursive-include docs *.py
+
+# Incluir schemas e validações
+recursive-include src/Entity/schemas *.py
+recursive-include src/Entity/validation *.py
+
+# Excluir arquivos desnecessários
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .DS_Store
+global-exclude *.so
+global-exclude *.dylib
+
+# Excluir diretórios de dados e logs
+prune dados-abertos
+prune dados-abertos-zip
+prune parquet
+prune logs
+prune venv
+prune .venv
+prune build
+prune dist
+prune *.egg-info
+prune .git
+prune .pytest_cache
+prune .mypy_cache

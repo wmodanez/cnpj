@@ -5,7 +5,7 @@ import subprocess
 import os
 
 # Versão fallback (atualize sempre que fizer um release)
-__version_fallback__ = "3.1.4"
+__version_fallback__ = "3.5.0"
 __title__ = "Sistema de Processamento de Dados CNPJ"
 
 def get_git_version():
@@ -51,8 +51,11 @@ def get_full_description():
     version = get_version()
     return f"{__title__} v{version}"
 
+# Variável de versão exportável
+__version__ = get_version()
+
 # Informações adicionais
-__author__ = "Equipe CNPJ"
+__author__ = "wmodanez"
 __email__ = ""
-__url__ = ""
-__license__ = "" 
+__url__ = "https://github.com/wmodanez/cnpj"
+__license__ = "MIT" 

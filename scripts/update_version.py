@@ -32,8 +32,8 @@ def get_git_latest_tag():
         return None
 
 def update_version_file(version):
-    """Atualiza o arquivo src/__version__.py com a nova versão."""
-    version_file = Path("src/__version__.py")
+    """Atualiza o arquivo cnpj_processor/__version__.py com a nova versão."""
+    version_file = Path("cnpj_processor/__version__.py")
     
     if not version_file.exists():
         print(f"Erro: {version_file} não encontrado")
@@ -89,9 +89,9 @@ def main():
     if update_version_file(version):
         print("\n✅ Versão atualizada com sucesso!")
         print("\nPróximos passos:")
-        print("1. Commit das alterações: git add src/__version__.py && git commit -m 'Atualizar versão para v{}'".format(version))
+        print("1. Commit das alterações: git add cnpj_processor/__version__.py && git commit -m 'Atualizar versão para v{}'".format(version))
         print("2. Criar tag: git tag v{}".format(version))
-        print("3. Push com tags: git push origin main --tags")
+        print("3. Push com tags: git push origin develop --tags")
     else:
         print("\n❌ Falha ao atualizar versão")
         sys.exit(1)

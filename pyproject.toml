@@ -1,0 +1,152 @@
+[build-system]
+requires = ["setuptools>=67.6.1", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cnpj-processor"
+version = "3.5.0"
+description = "Sistema automatizado de download, processamento e armazenamento de dados públicos de CNPJ da Receita Federal"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Wesley Modanez Freitas", email = "wesley.modanez@gmail.com"},
+]
+maintainers = [
+    {name = "Wesley Modanez Freitas", email = "wesley.modanez@gmail.com"},
+]
+keywords = [
+    "cnpj",
+    "receita-federal",
+    "dados-publicos",
+    "empresas",
+    "estabelecimentos",
+    "socios",
+    "brasil",
+    "open-data",
+    "parquet",
+    "database",
+    "data-processing",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Database",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
+dependencies = [
+    "beautifulsoup4>=4.12.3",
+    "duckdb>=0.10.0",
+    "python-dotenv>=1.0.1",
+    "aiohttp[speedups]>=3.9.5",
+    "aiofiles>=23.2.1",
+    "rich>=13.9.4",
+    "pyarrow>=19.0.0",
+    "matplotlib>=3.8.0",
+    "polars>=0.20.0",
+    "seaborn>=0.13.2",
+    "requests>=2.31.0",
+    "psutil>=5.9.8",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+docs = [
+    "sphinx>=6.0.0",
+    "sphinx-rtd-theme>=1.2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/wmodanez/cnpj"
+Documentation = "https://github.com/wmodanez/cnpj#readme"
+Repository = "https://github.com/wmodanez/cnpj"
+"Bug Tracker" = "https://github.com/wmodanez/cnpj/issues"
+Changelog = "https://github.com/wmodanez/cnpj/blob/main/VERSIONAMENTO.md"
+
+[project.scripts]
+cnpj-processor = "cnpj_processor.main:main"
+cnpj = "cnpj_processor.main:main"
+
+[tool.setuptools]
+zip-safe = false
+include-package-data = true
+packages = ["cnpj_processor", "cnpj_processor.Entity", "cnpj_processor.Entity.schemas", "cnpj_processor.Entity.validation", "cnpj_processor.process", "cnpj_processor.process.base", "cnpj_processor.process.processors", "cnpj_processor.utils"]
+
+[tool.setuptools.package-data]
+cnpj_processor = ["*.md", "*.txt"]
+
+[tool.black]
+line-length = 120
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | dados-abertos
+  | dados-abertos-zip
+  | parquet
+  | logs
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+skip_gitignore = true
+skip = ["venv", ".venv", "build", "dist", "dados-abertos", "dados-abertos-zip", "parquet", "logs"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+exclude = [
+    "^venv/",
+    "^build/",
+    "^dist/",
+    "^dados-abertos/",
+    "^dados-abertos-zip/",
+    "^parquet/",
+    "^logs/",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]

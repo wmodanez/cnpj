@@ -30,9 +30,9 @@ from rich.layout import Layout
 import psutil  # Adicionar import do psutil
 
 # Importações locais do projeto
-from src.config import config
-from src.utils.statistics import global_stats
-from src.utils.progress_tracker import progress_tracker
+from cnpj_processor.config import config
+from cnpj_processor.utils.statistics import global_stats
+from cnpj_processor.utils.progress_tracker import progress_tracker
 # 🆕 Versão 3.0.0: Importações da nova arquitetura refatorada
 from .process.base.factory import ProcessorFactory
 from .process.processors.empresa_processor import EmpresaProcessor
@@ -42,7 +42,7 @@ from .process.processors.socio_processor import SocioProcessor
 from .utils.time_utils import format_elapsed_time
 from .utils.statistics import global_stats
 from .utils.cache import DownloadCache  # Corrigir import do cache
-from src.utils.processing_cache import processing_cache
+from cnpj_processor.utils.processing_cache import processing_cache
 
 # Import do Circuit Breaker Global
 from .utils.global_circuit_breaker import (

@@ -131,6 +131,21 @@ import socket
 import requests
 from pathlib import Path
 
+# Configurar encoding UTF-8 para Windows (deve ser feito o mais cedo possível)
+if sys.platform == 'win32':
+    try:
+        # Tenta configurar UTF-8 no stdout/stderr
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8')
+        # Tenta configurar UTF-8 no console Windows
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        kernel32.SetConsoleOutputCP(65001)  # UTF-8
+    except:
+        pass  # Se falhar, continua com encoding padrão
+
 import aiohttp
 from dotenv import load_dotenv
 from rich.logging import RichHandler
@@ -139,9 +154,9 @@ from rich.logging import RichHandler
 load_dotenv()
 
 # Importar versão centralizada
-from src.__version__ import get_full_description
+from cnpj_processor.__version__ import get_full_description, get_version
 
-from src.async_downloader import (
+from cnpj_processor.async_downloader import (
     download_multiple_files, 
     get_latest_month_zip_urls, 
     get_remote_folders, 
@@ -150,23 +165,23 @@ from src.async_downloader import (
     download_only_files,
     get_network_test_results
 )
-from src.config import config
-from src.database import create_duckdb_file
-from src.process.base.factory import ProcessorFactory
-from src.process.processors.empresa_processor import EmpresaProcessor
-from src.process.processors.estabelecimento_processor import EstabelecimentoProcessor
-from src.process.processors.simples_processor import SimplesProcessor
-from src.process.processors.socio_processor import SocioProcessor
-from src.process.processors.painel_processor import PainelProcessor
-from src.utils import check_basic_folders
-from src.utils.time_utils import format_elapsed_time
-from src.utils.statistics import global_stats
+from cnpj_processor.config import config
+from cnpj_processor.database import create_duckdb_file
+from cnpj_processor.process.base.factory import ProcessorFactory
+from cnpj_processor.process.processors.empresa_processor import EmpresaProcessor
+from cnpj_processor.process.processors.estabelecimento_processor import EstabelecimentoProcessor
+from cnpj_processor.process.processors.simples_processor import SimplesProcessor
+from cnpj_processor.process.processors.socio_processor import SocioProcessor
+from cnpj_processor.process.processors.painel_processor import PainelProcessor
+from cnpj_processor.utils import check_basic_folders
+from cnpj_processor.utils.time_utils import format_elapsed_time
+from cnpj_processor.utils.statistics import global_stats
 
 # Configurar logger global
 logger = logging.getLogger(__name__)
 
 # Imports do circuit breaker
-from src.utils.global_circuit_breaker import (
+from cnpj_processor.utils.global_circuit_breaker import (
     circuit_breaker,
     FailureType,
     CriticalityLevel,
@@ -434,6 +449,9 @@ async def async_main():
         description=get_full_description()
     )
     
+    parser.add_argument('--version', '-V', action='version', 
+                        version=f'%(prog)s {get_version()}',
+                        help='Exibir a versão do programa e sair')
     parser.add_argument('--tipos', '-t', nargs='+', choices=['empresas', 'estabelecimentos', 'simples', 'socios'],
                          default=[], help='Tipos de dados a serem processados. Se não especificado, processa todos (relevante para steps \'process\' e \'all\').')
     parser.add_argument('--step', '-s', choices=['download', 'process', 'database', 'painel', 'all'], default='all',

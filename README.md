@@ -170,17 +170,34 @@ Todas as funcionalidades foram testadas e validadas em múltiplas plataformas, g
 
 ### Pré-requisitos
 
-- Python 3.9 ou superior
+- Python 3.8 ou superior
 - Espaço em disco suficiente para os arquivos
 - Conexão com internet estável
 - **Sistema Operacional**: Windows, Linux ou macOS (detecção automática)
 
 ### Instalação
 
-#### Windows
+#### Opção 1: Instalação via PyPI (Recomendado)
+
+```bash
+# Instalar o pacote
+pip install cnpj-processor
+
+# Verificar instalação
+cnpj-processor --version
+
+# Ver ajuda
+cnpj --help
+```
+
+Após a instalação via pip, você pode usar diretamente os comandos `cnpj-processor` ou `cnpj` em qualquer lugar do sistema.
+
+#### Opção 2: Instalação a partir do Código Fonte
+
+##### Windows
 ```cmd
 # Clone o repositório
-git clone https://github.com/seu-usuario/cnpj.git
+git clone https://github.com/wmodanez/cnpj.git
 cd cnpj
 
 # Crie um ambiente virtual
@@ -189,12 +206,15 @@ venv\Scripts\activate
 
 # Instale as dependências
 pip install -r requirements.txt
+
+# OU instale em modo desenvolvimento
+pip install -e .
 ```
 
-#### Linux/macOS
+##### Linux/macOS
 ```bash
 # Clone o repositório
-git clone https://github.com/seu-usuario/cnpj.git
+git clone https://github.com/wmodanez/cnpj.git
 cd cnpj
 
 # Crie um ambiente virtual
@@ -354,7 +374,27 @@ python -c "from src.__version__ import get_version; print('Versão:', get_versio
 
 ### Execução
 
-O script principal `main.py` aceita diversos argumentos para customizar a execução. **🆕 AGORA COM ATALHOS COMPLETOS!**
+O script principal aceita diversos argumentos para customizar a execução. **🆕 AGORA COM ATALHOS COMPLETOS!**
+
+#### Via Linha de Comando (após instalação via pip):
+
+```bash
+# Usando comando cnpj-processor ou cnpj (ambos funcionam)
+cnpj-processor --version
+cnpj --help
+
+# Exemplos de uso
+cnpj -t empresas -s download -q
+cnpj-processor -s all
+```
+
+#### Via Python (instalação local ou desenvolvimento):
+
+```bash
+python main.py
+# ou se instalado em modo desenvolvimento
+python -m src.main
+```
 
 #### Comandos Universais (funcionam identicamente em Windows/Linux/macOS):
 
@@ -363,6 +403,8 @@ O script principal `main.py` aceita diversos argumentos para customizar a execu�
 python main.py
 # Equivalente a:
 python main.py -s all
+# OU via pip:
+cnpj -s all
 
 # 🔥 NOVO: Pipeline Otimizado - Processamento Imediato (v3.1.4+)
 # O sistema agora processa cada arquivo IMEDIATAMENTE após verificação/download
@@ -371,32 +413,34 @@ python main.py -s all
 # 2. 🎯 EXEMPLOS COM ATALHOS (v3.2.0+):
 
 # Download apenas empresas em modo silencioso (78% mais curto):
+cnpj -t empresas -q
+# ou:
 python main.py -t empresas -q
 
 # Processar apenas estabelecimentos da pasta 2024-01:
-python main.py -s process -t estabelecimentos -z dados-zip/2024-01
+cnpj -s process -t estabelecimentos -z dados-zip/2024-01
 
 # Download de todas as pastas desde 2023-01:
-python main.py -a -f 2023-01
+cnpj -a -f 2023-01
 
 # Processamento com economia máxima de espaço:
-python main.py -t empresas -d -C -q
+cnpj -t empresas -d -C -q
 
 # Estabelecimentos de São Paulo com interface completa:
-python main.py -t estabelecimentos -U SP -o estab_sp -v
+cnpj -t estabelecimentos -U SP -o estab_sp -v
 
 # 3. Apenas baixar os arquivos ZIP mais recentes (todos os tipos):
-python main.py -s download
+cnpj -s download
 
 # 4. Apenas baixar arquivos ZIP de Empresas e Sócios:
-python main.py -s download -t empresas socios
+cnpj -s download -t empresas socios
 
 # 5. Baixar e processar dados de uma pasta específica (ex: 2024-01):
-python main.py -s download -t socios -r 2024-01
+cnpj -s download -t socios -r 2024-01
 
 # 6. Apenas processar ZIPs existentes para Parquet:
 #    (Necessário especificar a pasta de origem dos ZIPs e a subpasta de saída Parquet)
-python main.py -s process -z ../dados-abertos-zip -o meu_processamento_manual
+cnpj -s process -z ../dados-abertos-zip -o meu_processamento_manual
 
 # 7. Apenas processar ZIPs existentes de Simples e Sócios:
 python main.py -s process -z "D:/MeusDownloads/CNPJ_ZIPs" -o simples_socios -t simples socios
