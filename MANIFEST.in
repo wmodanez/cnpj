@@ -21,8 +21,8 @@ recursive-include docs *.md
 recursive-include docs *.py
 
 # Incluir schemas e validações
-recursive-include src/Entity/schemas *.py
-recursive-include src/Entity/validation *.py
+recursive-include cnpj_processor/Entity/schemas *.py
+recursive-include cnpj_processor/Entity/validation *.py
 
 # Excluir arquivos desnecessários
 global-exclude __pycache__

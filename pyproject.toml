@@ -8,7 +8,7 @@ version = "3.5.0"
 description = "Sistema automatizado de download, processamento e armazenamento de dados públicos de CNPJ da Receita Federal"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Wesley Modanez Freitas", email = "wesley.modanez@gmail.com"},
 ]
@@ -33,7 +33,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Financial and Insurance Industry",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
