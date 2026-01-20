@@ -5,7 +5,7 @@ import subprocess
 import os
 
 # Versão fallback (atualize sempre que fizer um release)
-__version_fallback__ = "3.1.4"
+__version_fallback__ = "3.7.0"
 __title__ = "Sistema de Processamento de Dados CNPJ"
 
 def get_git_version():

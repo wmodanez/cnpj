@@ -1,0 +1,87 @@
+[build-system]
+requires = ["setuptools>=67.6.1", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cnpj-processor"
+dynamic = ["version"]
+description = "Sistema de Processamento de Dados CNPJ da Receita Federal do Brasil"
+readme = "README.md"
+license = "MIT"
+authors = [
+    {name = "Wesley Modanez Freitas", email = "wesley.modanez@gmail.com"}
+]
+keywords = [
+    "cnpj",
+    "receita-federal",
+    "dados-abertos",
+    "brasil",
+    "empresas",
+    "estabelecimentos",
+    "data-processing",
+    "duckdb",
+    "parquet"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "beautifulsoup4>=4.12.0",
+    "duckdb>=0.10.0",
+    "python-dotenv>=1.0.0",
+    "aiohttp[speedups]>=3.9.5",
+    "aiofiles>=23.2.0",
+    "rich>=13.9.0",
+    "pyarrow>=19.0.0",
+    "matplotlib>=3.8.0",
+    "polars>=0.20.0",
+    "seaborn>=0.13.0",
+    "requests>=2.31.0",
+    "psutil>=5.9.8",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "build>=0.10.0",
+    "twine>=4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/wmodanez/cnpj"
+Documentation = "https://github.com/wmodanez/cnpj/blob/develop/README.md"
+Repository = "https://github.com/wmodanez/cnpj"
+Issues = "https://github.com/wmodanez/cnpj/issues"
+
+[project.scripts]
+cnpj-processor = "cnpj_processor.cli:main"
+
+[tool.setuptools]
+packages = ["cnpj_processor", "src", "src.Entity", "src.Entity.schemas", "src.Entity.validation", "src.process", "src.process.base", "src.process.processors", "src.utils"]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {attr = "cnpj_processor.__version__.__version__"}
+
+[tool.setuptools.package-data]
+"*" = ["*.txt", "*.md", "*.json"]
