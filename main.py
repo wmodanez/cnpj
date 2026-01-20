@@ -158,7 +158,7 @@ from rich.logging import RichHandler
 load_dotenv()
 
 # Importar versão centralizada
-from src.__version__ import get_full_description
+from src.__version__ import get_full_description, get_version
 
 from src.async_downloader import (
     download_multiple_files, 
@@ -505,6 +505,8 @@ async def async_main():
                          help='Incluir estabelecimentos inativos no painel')
     parser.add_argument('--show-latest-folder', '--latest', action='store_true',
                          help='Exibir a pasta remota mais recente disponível e sair')
+    parser.add_argument('--version', '-V', action='store_true',
+                         help='Exibir a versão do cnpj-processor e sair')
 
     args = parser.parse_args()
     
@@ -529,6 +531,12 @@ async def async_main():
         except Exception as e:
             print(f"❌ Erro ao consultar pasta remota: {e}")
             return False, ""
+    
+    # Tratamento especial: --version com saída limpa
+    if args.version:
+        version = get_version()
+        print(f"cnpj-processor {version}")
+        return True, ""
     
     # Configurar logging
     logger = setup_logging(args.log_level)
