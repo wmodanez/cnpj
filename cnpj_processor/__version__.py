@@ -8,7 +8,7 @@ Ambas seguem versionamento semântico.
 # Versão da API pública
 __version__ = "3.7.0"
 __title__ = "CNPJ Processor"
-__author__ = "wmodanez"
+__author__ = "Wesley Modanez Freitas"
 __license__ = "MIT"
 
 def get_version():

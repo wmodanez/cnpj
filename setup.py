@@ -19,13 +19,13 @@ try:
     version = get_version()
 except Exception as e:
     print(f"Aviso: Não foi possível obter versão do git: {e}")
-    version = "3.1.4"  # Fallback
+    version = "3.6.0"  # Fallback
 
 setup(
     name="cnpj-processor",
     version=version,
-    author="wmodanez",
-    author_email="wmodanez@gmail.com",
+    author="Wesley Modanez Freitas",
+    author_email="wesley.modanez@gmail.com",
     description="Sistema de Processamento de Dados CNPJ da Receita Federal do Brasil",
     long_description=long_description,
     long_description_content_type="text/markdown",
