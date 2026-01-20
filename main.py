@@ -25,7 +25,7 @@ EXEMPLOS DE USO DO PROCESSADOR CNPJ:
    python main.py --step database --output-subfolder processados_2024_05
 
 8. Apenas processamento do painel:
-   python main.py --step painel --remote-folder 2024-05 --no-backup
+   python main.py --step painel --remote-folder 2024-05
 
 === CONTROLE DE PASTAS ===
 9. Salvar em subpasta específica:
@@ -37,76 +37,80 @@ EXEMPLOS DE USO DO PROCESSADOR CNPJ:
 11. Processar de pasta ZIP específica:
     python main.py --step process --source-zip-folder "D:/MeusDownloads/CNPJ_ZIPs/2024-01"
 
+12. Exibir a pasta remota mais recente disponível:
+    python main.py --show-latest-folder
+    python main.py --latest
+
 === PROCESSAMENTO DO PAINEL CONSOLIDADO ===
-12. Painel completo sem filtros:
+13. Painel completo sem filtros:
     python main.py --processar-painel
 
-13. Painel filtrado por UF:
+14. Painel filtrado por UF:
     python main.py --processar-painel --painel-uf SP
 
-14. Painel filtrado por situação (2=Ativa):
+15. Painel filtrado por situação (2=Ativa):
     python main.py --processar-painel --painel-situacao 2
 
-15. Painel com filtros combinados:
+16. Painel com filtros combinados:
     python main.py --processar-painel --painel-uf GO --painel-situacao 2
 
-16. Processamento exclusivo do painel (usando dados já processados):
-    python main.py --step painel --remote-folder 2024-05 --no-backup
+17. Processamento exclusivo do painel (usando dados já processados):
+    python main.py --step painel --remote-folder 2024-05
 
-17. Painel na pasta raiz:
-    python main.py --step painel --remote-folder 2024-05 --output-subfolder . --no-backup
+18. Painel na pasta raiz:
+    python main.py --step painel --remote-folder 2024-05 --output-subfolder .
 
 === SUBCONJUNTOS E FILTROS ===
-18. Criar subconjunto de empresas privadas:
+19. Criar subconjunto de empresas privadas:
     python main.py --tipos empresas --criar-empresa-privada
 
-19. Criar subconjunto por UF (estabelecimentos):
+20. Criar subconjunto por UF (estabelecimentos):
     python main.py --tipos estabelecimentos --criar-subset-uf SP
 
 === ECONOMIA DE ESPAÇO ===
-20. Remover arquivos parquet após criar banco:
+21. Remover arquivos parquet após criar banco:
     python main.py --cleanup-after-db
 
-21. Remover arquivos parquet E ZIP após criar banco (máxima economia):
+22. Remover arquivos parquet E ZIP após criar banco (máxima economia):
     python main.py --cleanup-all-after-db
 
-22. Pipeline com economia máxima:
+23. Pipeline com economia máxima:
     python main.py --delete-zips-after-extract --cleanup-all-after-db
 
 === CONTROLE DE INTERFACE ===
-23. Modo silencioso:
+24. Modo silencioso:
     python main.py --quiet
 
-24. Forçar download mesmo se arquivo existir:
+25. Forçar download mesmo se arquivo existir:
     python main.py --force-download
 
-25. Processamento em modo verboso:
+26. Processamento em modo verboso:
     python main.py --verbose-ui
 
 === PROCESSAMENTO MÚLTIPLO ===
-26. Baixar de todas as pastas disponíveis:
+27. Baixar de todas as pastas disponíveis:
     python main.py --all-folders --step download
 
-27. Processar múltiplas pastas a partir de uma data:
+28. Processar múltiplas pastas a partir de uma data:
     python main.py --all-folders --from-folder 2023-01
 
-28. Processar todas as pastas locais:
+29. Processar todas as pastas locais:
     python main.py --step process --process-all-folders
 
 === EXEMPLOS AVANÇADOS ===
-29. Pipeline completo com painel e economia máxima:
+30. Pipeline completo com painel e economia máxima:
     python main.py --processar-painel --painel-uf SP --cleanup-all-after-db
 
-30. Processamento conservador de espaço:
+31. Processamento conservador de espaço:
     python main.py --tipos estabelecimentos --delete-zips-after-extract --cleanup-after-db
 
 PARÂMETROS PRINCIPAIS:
+- --show-latest-folder, --latest: Exibir a pasta remota mais recente disponível
 - --tipos: Especifica quais dados processar (empresas, estabelecimentos, simples, socios)
 - --step: Define a etapa (download, process, database, painel, all)
 - --remote-folder: Usa pasta remota específica (formato AAAA-MM)
 - --output-subfolder: Define subpasta de saída (use "." para pasta raiz)
 - --source-zip-folder: Especifica pasta com ZIPs para processamento
-- --no-backup: Não faz backup final (útil com --step painel)
 - --processar-painel: Ativa processamento do painel consolidado
 - --painel-uf: Filtra painel por UF
 - --painel-situacao: Filtra painel por situação cadastral
@@ -130,6 +134,21 @@ import time
 import socket
 import requests
 from pathlib import Path
+
+# Configurar encoding UTF-8 para Windows (deve ser feito o mais cedo possível)
+if sys.platform == 'win32':
+    try:
+        # Tenta configurar UTF-8 no stdout/stderr
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8')
+        # Tenta configurar UTF-8 no console Windows
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        kernel32.SetConsoleOutputCP(65001)  # UTF-8
+    except:
+        pass  # Se falhar, continua com encoding padrão
 
 import aiohttp
 from dotenv import load_dotenv
@@ -484,10 +503,32 @@ async def async_main():
                          help='Filtrar painel por situação cadastral (1=Nula, 2=Ativa, 3=Suspensa, 4=Inapta, 8=Baixada)')
     parser.add_argument('--painel-incluir-inativos', action='store_true',
                          help='Incluir estabelecimentos inativos no painel')
-    parser.add_argument('--no-backup', action='store_true',
-                         help='Não fazer backup final dos arquivos para PATH_REMOTE_PARQUET')
+    parser.add_argument('--show-latest-folder', '--latest', action='store_true',
+                         help='Exibir a pasta remota mais recente disponível e sair')
 
     args = parser.parse_args()
+    
+    # Tratamento especial: --show-latest-folder com log desabilitado
+    if args.show_latest_folder:
+        try:
+            load_dotenv()
+            base_url = os.getenv('BASE_URL')
+            if not base_url:
+                print("❌ BASE_URL não definida no arquivo .env")
+                return False, ""
+            
+            latest_folder = await get_latest_remote_folder(base_url)
+            
+            if latest_folder:
+                print(latest_folder)
+                return True, latest_folder
+            else:
+                print("❌ Não foi possível determinar a pasta remota mais recente")
+                return False, ""
+                
+        except Exception as e:
+            print(f"❌ Erro ao consultar pasta remota: {e}")
+            return False, ""
     
     # Configurar logging
     logger = setup_logging(args.log_level)
@@ -513,7 +554,6 @@ async def async_main():
     PATH_UNZIP = os.getenv('PATH_UNZIP', './dados-unzip')
     PATH_PARQUET = os.getenv('PATH_PARQUET', './dados-parquet')
     FILE_DB_PARQUET = os.getenv('FILE_DB_PARQUET', 'cnpj.duckdb')
-    PATH_REMOTE_PARQUET = os.getenv('PATH_REMOTE_PARQUET', 'destino/')
     
     if PATH_ZIP and PATH_UNZIP and PATH_PARQUET:
         print_success("Variáveis de ambiente carregadas com sucesso")
@@ -521,7 +561,6 @@ async def async_main():
         logger.info(f"PATH_UNZIP = {PATH_UNZIP}")
         logger.info(f"PATH_PARQUET = {PATH_PARQUET}")
         logger.info(f"FILE_DB_PARQUET = {FILE_DB_PARQUET}")
-        logger.info(f"PATH_REMOTE_PARQUET = {PATH_REMOTE_PARQUET}")
     else:
         print_error("Erro ao carregar variáveis de ambiente. Verifique o arquivo .env")
         logger.error("Variáveis de ambiente PATH_ZIP, PATH_UNZIP ou PATH_PARQUET não definidas")
@@ -569,8 +608,10 @@ async def async_main():
             else:
                 # Obter pasta mais recente
                 try:
-                    from src.async_downloader import get_latest_remote_folder
-                    base_url = os.getenv('BASE_URL', 'https://dados.rfb.gov.br/CNPJ/')
+                    base_url = os.getenv('BASE_URL')
+                    if not base_url:
+                        logger.error("BASE_URL não definida no arquivo .env")
+                        return False, ""
                     latest_folder = await get_latest_remote_folder(base_url)
                     if not latest_folder:
                         logger.error("Não foi possível determinar a pasta remota. Use --source-zip-folder ou --remote-folder")
@@ -653,8 +694,10 @@ async def async_main():
             logger.info(f"Usando pasta remota especificada: {latest_folder}")
         else:
             # Obter pasta mais recente
-            from src.async_downloader import get_latest_remote_folder
-            base_url = os.getenv('BASE_URL', 'https://dados.rfb.gov.br/CNPJ/')
+            base_url = os.getenv('BASE_URL')
+            if not base_url:
+                logger.error("BASE_URL não definida no arquivo .env")
+                return False, ""
             latest_folder = await get_latest_remote_folder(base_url)
             if not latest_folder:
                 logger.error("Não foi possível determinar a pasta remota mais recente. Use --remote-folder.")
@@ -778,8 +821,7 @@ async def async_main():
             return False, ""
 
         db_start_time = time.time()
-        backup_path = None if args.no_backup else PATH_REMOTE_PARQUET
-        db_success = create_duckdb_file(output_parquet_path, FILE_DB_PARQUET, backup_path)
+        db_success = create_duckdb_file(output_parquet_path, FILE_DB_PARQUET)
         db_time = time.time() - db_start_time
 
         if db_success:
@@ -804,8 +846,10 @@ async def async_main():
             logger.info(f"Usando pasta remota especificada: {latest_folder}")
         else:
             # Obter pasta mais recente
-            from src.async_downloader import get_latest_remote_folder
-            base_url = os.getenv('BASE_URL', 'https://dados.rfb.gov.br/CNPJ/')
+            base_url = os.getenv('BASE_URL')
+            if not base_url:
+                logger.error("BASE_URL não definida no arquivo .env")
+                return False, ""
             latest_folder = await get_latest_remote_folder(base_url)
             if not latest_folder:
                 logger.error("Não foi possível determinar a pasta remota mais recente")
@@ -948,9 +992,7 @@ async def async_main():
         
         try:
             logger.info(f"Criando arquivo DuckDB em: {output_parquet_path}")
-            # Determinar se deve fazer backup baseado no parâmetro --no-backup
-            backup_path = None if args.no_backup else PATH_REMOTE_PARQUET
-            db_success = create_duckdb_file(output_parquet_path, FILE_DB_PARQUET, backup_path)
+            db_success = create_duckdb_file(output_parquet_path, FILE_DB_PARQUET)
             db_time = time.time() - db_start_time
             
             if db_success:
