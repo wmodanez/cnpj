@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cnpj-processor"
-dynamic = ["version"]
+version = "4.0.0"
 description = "Sistema de Processamento de Dados CNPJ da Receita Federal do Brasil"
-readme = "README.md"
+readme = "cnpj_processor/README.md"
 license = "MIT"
 authors = [
     {name = "Wesley Modanez Freitas", email = "wesley.modanez@gmail.com"}
