@@ -108,20 +108,25 @@ def upload_testpypi():
     )
 
 
-def upload_pypi():
+def upload_pypi(force=False):
     """Upload para PyPI (PRODUÇÃO)."""
     if not os.path.exists('dist'):
         print("\n❌ Diretório dist/ não encontrado. Execute --build primeiro.")
         return False
     
-    print("\n" + "="*60)
-    print("⚠️  ATENÇÃO: UPLOAD PARA PYPI DE PRODUÇÃO!")
-    print("="*60)
-    response = input("Tem certeza que deseja fazer upload para o PyPI de PRODUÇÃO? (sim/não): ")
-    
-    if response.lower() not in ['sim', 'yes', 's', 'y']:
-        print("❌ Upload cancelado pelo usuário")
-        return False
+    if not force:
+        print("\n" + "="*60)
+        print("⚠️  ATENÇÃO: UPLOAD PARA PYPI DE PRODUÇÃO!")
+        print("="*60)
+        response = input("Tem certeza que deseja fazer upload para o PyPI de PRODUÇÃO? (sim/não): ")
+        
+        if response.lower() not in ['sim', 'yes', 's', 'y']:
+            print("❌ Upload cancelado pelo usuário")
+            return False
+    else:
+        print("\n" + "="*60)
+        print("⚠️  UPLOAD PARA PYPI DE PRODUÇÃO (--force)")
+        print("="*60)
     
     return run_command(
         [sys.executable, '-m', 'twine', 'upload', 'dist/*'],
@@ -169,12 +174,15 @@ Exemplos de uso:
   # Workflow para produção (CUIDADO!)
   python scripts/build_and_publish.py --production
   
+  # Workflow para produção sem confirmação
+  python scripts/build_and_publish.py --production --force
+  
   # Apenas build e verificação
   python scripts/build_and_publish.py --clean --build --check
   
   # Upload manual após verificar os arquivos
   python scripts/build_and_publish.py --test
-  python scripts/build_and_publish.py --publish
+  python scripts/build_and_publish.py --publish --force
         """
     )
     
@@ -192,6 +200,8 @@ Exemplos de uso:
                        help='Executar: clean + build + check + test')
     parser.add_argument('--production', action='store_true',
                        help='Executar: clean + build + check + publish (CUIDADO!)')
+    parser.add_argument('--force', action='store_true',
+                       help='Pular confirmação de upload para PyPI (use com cuidado!)')
     
     args = parser.parse_args()
     
@@ -238,7 +248,7 @@ Exemplos de uso:
         success = upload_testpypi() and success
     
     if args.publish and success:
-        success = upload_pypi() and success
+        success = upload_pypi(force=args.force) and success
     
     # Resultado final
     print("\n" + "="*60)

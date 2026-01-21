@@ -79,7 +79,7 @@ def get_default_env_vars() -> dict:
     }
 
 
-def load_env_with_defaults(working_dir: str = None, silent: bool = False):
+def load_env_with_defaults(working_dir: str = None, silent: bool = True):
     """
     Carrega APENAS o .env do pacote (não carrega o .env do usuário).
     
@@ -90,23 +90,14 @@ def load_env_with_defaults(working_dir: str = None, silent: bool = False):
     
     Args:
         working_dir: Não é usado (mantido para compatibilidade). O .env carregado é sempre do pacote.
-        silent: Se True, não exibe mensagens informativas.
+        silent: Se True (padrão), não exibe mensagens informativas.
     """
     from dotenv import load_dotenv
     
-    # 1. Garantir que o .env do pacote existe
+    # 1. Garantir que o .env do pacote existe (silenciosamente)
     ensure_package_env_file()
     
     # 2. Carregar .env do pacote (ÚNICA fonte de configuração para a API)
     package_env = get_package_env_path()
     if package_env.exists():
         load_dotenv(package_env, override=False)
-    else:
-        # Fallback: aplicar defaults em memória se o arquivo não existir
-        defaults = get_default_env_vars()
-        for key, default_value in defaults.items():
-            if not os.getenv(key):
-                os.environ[key] = default_value
-    
-    if not silent:
-        print(f"✓ Configurações carregadas do pacote: {package_env}")
