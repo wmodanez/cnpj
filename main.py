@@ -159,7 +159,9 @@ from dotenv import load_dotenv
 from rich.logging import RichHandler
 
 # CARREGAR VARIÁVEIS DE AMBIENTE ANTES DAS IMPORTAÇÕES QUE DEPENDEM DELAS
-load_dotenv()
+# Garantir que o .env existe com valores padrão
+from src.utils.env_setup import load_env_with_defaults
+load_env_with_defaults()
 
 # Importar versão centralizada
 from src.__version__ import get_full_description, get_version
