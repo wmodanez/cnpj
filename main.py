@@ -876,12 +876,12 @@ async def async_main():
         source_zip_path = os.path.join(PATH_ZIP, latest_folder)
         # Definir pasta de saída
         if args.output_subfolder == ".":
-            # Usar "." para pasta raiz
-            output_parquet_path = PATH_PARQUET
+            # Usar "." para pasta raiz (incluir pasta remota)
+            output_parquet_path = os.path.join(PATH_PARQUET, latest_folder)
         elif args.output_subfolder:
-            # Usar subpasta especificada
-            # Se for caminho relativo com .., resolver para caminho absoluto
-            output_parquet_path = os.path.normpath(os.path.join(PATH_PARQUET, args.output_subfolder))
+            # Usar subpasta especificada dentro da pasta remota
+            # --output-subfolder simples -> parquet/XXXX-XX/simples
+            output_parquet_path = os.path.normpath(os.path.join(PATH_PARQUET, latest_folder, args.output_subfolder))
         else:
             # Padrão: usar nome da pasta remota
             output_parquet_path = os.path.join(PATH_PARQUET, latest_folder)
