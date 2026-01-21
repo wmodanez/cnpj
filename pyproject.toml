@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cnpj-processor"
-version = "4.0.2"
+version = "4.0.3"
 description = "Sistema de Processamento de Dados CNPJ da Receita Federal do Brasil"
 readme = "cnpj_processor/README.md"
 license = "MIT"
