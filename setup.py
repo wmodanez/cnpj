@@ -1,25 +1,40 @@
 from setuptools import setup, find_packages
 import os
-import sys
+import subprocess
 
-# Adicionar o diretório atual ao path para importar a versão
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
-
-# Ler README
-with open("README.md", "r", encoding="utf-8") as fh:
+# Ler README da API (para PyPI)
+readme_path = os.path.join("cnpj_processor", "README.md")
+with open(readme_path, "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 # Ler requirements
 with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
-# Importar versão
-try:
-    from src.__version__ import get_version
-    version = get_version()
-except Exception as e:
-    print(f"Aviso: Não foi possível obter versão do git: {e}")
-    version = "3.6.0"  # Fallback
+# Obter versão do git tag (fonte única de verdade)
+def get_version_from_git():
+    """Obtém versão da tag git mais recente."""
+    try:
+        result = subprocess.run(
+            ['git', 'describe', '--tags', '--abbrev=0'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            version = result.stdout.strip()
+            # Remove 'v' prefix se existir
+            return version[1:] if version.startswith('v') else version
+    except Exception as e:
+        print(f"Erro ao obter versão do git: {e}")
+    
+    raise ValueError(
+        "Não foi possível obter versão do git. "
+        "Certifique-se de criar uma tag git antes de publicar: "
+        "python scripts/release.py --major|--minor|--patch"
+    )
+
+version = get_version_from_git()
 
 setup(
     name="cnpj-processor",

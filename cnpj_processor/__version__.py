@@ -1,19 +1,41 @@
 """
-Versionamento da API cnpj_processor para PyPI
+Versonamento da API cnpj_processor para PyPI
 
-A partir da v3.7.0, a versão da API está unificada com a versão do projeto.
-Ambas seguem versionamento semântico.
+A versão é obtida EXCLUSIVAMENTE das git tags do repositório.
+Isso garante sincronização perfeita entre código e releases.
 """
+import subprocess
 
-# Versão da API pública
-__version__ = "3.7.0"
 __title__ = "CNPJ Processor"
 __author__ = "Wesley Modanez Freitas"
 __license__ = "MIT"
 
 def get_version():
-    """Retorna a versão da API."""
-    return __version__
+    """Retorna a versão da API a partir das git tags."""
+    try:
+        result = subprocess.run(
+            ['git', 'describe', '--tags', '--abbrev=0'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            version = result.stdout.strip()
+            # Remove 'v' prefix se existir
+            return version[1:] if version.startswith('v') else version
+    except Exception:
+        pass
+    
+    raise RuntimeError(
+        "Não foi possível obter versão do git. "
+        "Execute: python scripts/release.py --major|--minor|--patch"
+    )
+
+# Expor versão como variável de módulo
+try:
+    __version__ = get_version()
+except RuntimeError:
+    __version__ = "unknown"
 
 def get_full_description():
     """Retorna a descrição completa da API."""

@@ -1,16 +1,17 @@
 """
 Arquivo centralizado de versionamento do Sistema CNPJ
+
+A versão é obtida EXCLUSIVAMENTE das git tags.
+Não use fallbacks hardcoded - isso garante que apenas releases oficiais sejam usados.
 """
 import subprocess
 import os
 
-# Versão fallback (atualize sempre que fizer um release)
-__version_fallback__ = "3.7.0"
 __title__ = "Sistema de Processamento de Dados CNPJ"
 
 def get_git_version():
     """
-    Tenta obter a versão atual do git tags.
+    Obtém a versão atual das git tags.
     Retorna None se não conseguir.
     """
     try:
