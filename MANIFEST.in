@@ -8,7 +8,8 @@ include README_*.md
 include ATALHOS.md
 include .env.example
 
-# Incluir documentação
+# Incluir arquivo de configuração do cnpj-processor
+recursive-include cnpj_processor .env.cnpj-processor
 recursive-include docs *.md *.py
 
 # Incluir código fonte

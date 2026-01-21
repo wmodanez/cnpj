@@ -28,13 +28,14 @@ CACHE_PATH=cache/
 
 def get_package_env_path() -> Path:
     """
-    Retorna o caminho do arquivo .env do pacote.
-    Este arquivo contém as configurações necessárias para o cnpj-processor.
+    Retorna o caminho do arquivo .env.cnpj-processor em site-packages/cnpj_processor/.
     
-    O arquivo fica na raiz do pacote (mesmo nível do pyproject.toml).
+    O arquivo fica protegido dentro da instalação do pacote, evitando deleções 
+    acidentais e conflitos com .env do usuário.
     """
-    # Encontrar a raiz do pacote: src/utils/env_setup.py -> raiz
-    return Path(__file__).parent.parent.parent / '.env'
+    # src/utils/env_setup.py -> src -> site-packages
+    site_packages = Path(__file__).parent.parent.parent.parent
+    return site_packages / 'cnpj_processor' / '.env.cnpj-processor'
 
 
 def ensure_package_env_file() -> bool:
