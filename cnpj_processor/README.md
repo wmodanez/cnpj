@@ -1,0 +1,447 @@
+# CNPJ Processor 🏢
+
+[![PyPI version](https://badge.fury.io/py/cnpj-processor.svg)](https://badge.fury.io/py/cnpj-processor)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+> Sistema profissional de processamento de dados públicos CNPJ da Receita Federal do Brasil
+
+Automatize o download, processamento e análise dos dados públicos de CNPJ com performance excepcional e API simplificada.
+
+## 🚀 Instalação
+
+```bash
+pip install cnpj-processor
+```
+
+## ⚡ Início Rápido
+
+### Via Linha de Comando (CLI)
+
+```bash
+# Pipeline completo (download + processamento + banco de dados)
+cnpj-processor
+
+# Download apenas
+cnpj-processor --step download --tipos empresas estabelecimentos
+
+# Processar painel consolidado por UF
+cnpj-processor --step painel --painel-uf GO --painel-situacao 2
+```
+
+### Via API Python
+
+```python
+from cnpj_processor import CNPJProcessor
+
+# Criar processador
+processor = CNPJProcessor()
+
+# Pipeline completo
+success, folder = processor.run()
+
+# Painel de empresas ativas em São Paulo
+success, folder = processor.run(
+    step='painel',
+    painel_uf='GO',
+    painel_situacao=2  # Ativas
+)
+```
+
+## 🎯 Principais Funcionalidades
+
+### 📥 Download Inteligente
+
+- Download assíncrono de alta performance
+- Retomada automática em caso de falha
+- Verificação de integridade de arquivos
+- Cache inteligente para evitar downloads duplicados
+
+### ⚙️ Processamento Otimizado
+
+- Pipeline paralelo: download e processamento simultâneos
+- Até **70% mais rápido** que processamento sequencial
+- Suporte a múltiplos tipos: empresas, estabelecimentos, sócios, simples
+- Exportação para Parquet com compressão eficiente
+
+### 🎨 Painel Consolidado
+
+- Combinação inteligente de dados de múltiplas fontes
+- Filtros avançados: UF, situação cadastral, Simples Nacional
+- Ideal para análises e dashboards
+- Formato otimizado para BI tools
+
+### 💾 Banco de Dados
+
+- Geração automática de banco DuckDB
+- Queries SQL de alta performance
+- Integração perfeita com ferramentas de análise
+
+## 📚 API Simplificada
+
+A API do `cnpj-processor` foi projetada para ser **simples, poderosa e intuitiva**.
+
+### Métodos Principais
+
+#### `run()` - Método Universal
+
+Execute qualquer operação com um único método:
+
+```python
+processor = CNPJProcessor()
+
+# Pipeline completo
+processor.run()
+
+# Download específico
+processor.run(step='download', tipos=['empresas'], remote_folder='2026-01')
+
+# Processamento com economia de espaço
+processor.run(
+    step='all',
+    delete_zips_after_extract=True,
+    cleanup_all_after_db=True
+)
+
+# Painel customizado
+processor.run(
+    step='painel',
+    painel_uf='GO',
+    painel_situacao=2,
+    output_subfolder='painel_go_ativas'
+)
+```
+
+**Parâmetros do `run()`:**
+
+| Parâmetro | Tipo | Descrição |
+| --------- | ---- | --------- |
+| `step` | str | Etapa: 'download', 'process', 'database', 'painel', 'all' |
+| `tipos` | list | Tipos a processar: ['empresas', 'estabelecimentos', 'simples', 'socios'] |
+| `remote_folder` | str | Pasta remota (formato AAAA-MM) |
+| `output_subfolder` | str | Subpasta de saída |
+| `force_download` | bool | Forçar re-download |
+| `delete_zips_after_extract` | bool | Deletar ZIPs após extração |
+| `cleanup_after_db` | bool | Deletar parquets após criar banco |
+| `cleanup_all_after_db` | bool | Deletar parquets E ZIPs após banco |
+| `processar_painel` | bool | Processar painel consolidado |
+| `painel_uf` | str | Filtrar painel por UF |
+| `painel_situacao` | int | Filtrar por situação (1=Nula, 2=Ativa, 3=Suspensa, 4=Inapta, 8=Baixada) |
+| `criar_empresa_privada` | bool | Criar subset de empresas privadas |
+| `criar_subset_uf` | str | Criar subset por UF |
+| `quiet` | bool | Modo silencioso |
+| `log_level` | str | Nível de log ('DEBUG', 'INFO', 'WARNING', 'ERROR') |
+
+#### `get_latest_folder()` - Consultar Pasta Mais Recente
+
+```python
+processor = CNPJProcessor()
+latest = processor.get_latest_folder()
+print(f"Pasta mais recente: {latest}")  # '2026-01'
+```
+
+#### `get_available_folders()` - Listar Pastas Disponíveis
+
+```python
+processor = CNPJProcessor()
+folders = processor.get_available_folders()
+print(f"Disponíveis: {folders}")  # ['2026-01', '2025-12', ...]
+```
+
+## 💡 Exemplos Práticos
+
+### Exemplo 1: Pipeline Completo
+
+```python
+from cnpj_processor import CNPJProcessor
+
+processor = CNPJProcessor()
+success, folder = processor.run()
+
+if success:
+    print(f"✅ Dados processados em: {folder}")
+```
+
+### Exemplo 2: Download Seletivo
+
+```python
+# Baixar apenas empresas e estabelecimentos
+processor = CNPJProcessor()
+success, folder = processor.run(
+    step='download',
+    tipos=['empresas', 'estabelecimentos'],
+    remote_folder='2026-01'
+)
+```
+
+### Exemplo 3: Processamento com Economia de Espaço
+
+```python
+# Remove arquivos intermediários automaticamente
+processor = CNPJProcessor()
+success, folder = processor.run(
+    step='all',
+    delete_zips_after_extract=True,  # Remove ZIPs após extração
+    cleanup_all_after_db=True         # Remove parquets após criar banco
+)
+```
+
+### Exemplo 4: Painel Analítico Customizado
+
+```python
+# Painel apenas de empresas ativas de Goiás
+processor = CNPJProcessor()
+success, folder = processor.run(
+    step='painel',
+    painel_uf='GO',
+    painel_situacao=2,  # Ativas
+    output_subfolder='painel_go_ativas'
+)
+```
+
+### Exemplo 5: Processar Múltiplos Períodos
+
+```python
+processor = CNPJProcessor()
+pastas = ['2025-12', '2026-01']
+
+for pasta in pastas:
+    print(f"Processando {pasta}...")
+    success, folder = processor.run(
+        step='all',
+        remote_folder=pasta,
+        output_subfolder=f'dados_{pasta.replace("-", "_")}'
+    )
+    print(f"{'✅' if success else '❌'} {pasta}")
+```
+
+### Exemplo 6: Subset Especializado
+
+```python
+# Apenas empresas privadas
+processor = CNPJProcessor()
+success, folder = processor.run(
+    step='all',
+    tipos=['empresas'],
+    criar_empresa_privada=True,
+    output_subfolder='empresas_privadas'
+)
+
+# Apenas estabelecimentos de uma UF
+success, folder = processor.run(
+    step='all',
+    tipos=['estabelecimentos'],
+    criar_subset_uf='GO',
+    output_subfolder='estabelecimentos_sp'
+)
+```
+
+## 🔧 Uso via CLI
+
+O `cnpj-processor` também oferece interface completa de linha de comando:
+
+```bash
+# Pipeline completo
+cnpj-processor
+
+# Download de pasta específica
+cnpj-processor --step download --remote-folder 2026-01
+
+# Processar apenas estabelecimentos
+cnpj-processor --tipos estabelecimentos
+
+# Painel filtrado
+cnpj-processor --step painel --painel-uf GO --painel-situacao 2
+
+# Economia de espaço
+cnpj-processor --delete-zips-after-extract --cleanup-all-after-db
+
+# Ver pasta mais recente disponível
+cnpj-processor --show-latest-folder
+
+# Ver versão
+cnpj-processor --version
+
+# Ajuda completa
+cnpj-processor --help
+```
+
+### Atalhos de CLI
+
+Interface otimizada com atalhos intuitivos:
+
+```bash
+# Equivalentes (forma completa vs. atalho)
+cnpj-processor --tipos empresas --step download --remote-folder 2026-01
+cnpj-processor -t empresas -s download -r 2026-01
+
+# Pipeline com economia de espaço
+cnpj-processor --delete-zips-after-extract --cleanup-after-db --quiet
+cnpj-processor -d -c -q
+
+# Painel filtrado
+cnpj-processor --step painel --painel-uf GO --painel-situacao 2
+cnpj-processor -s painel --painel-uf GO --painel-situacao 2
+```
+
+## 📊 Estrutura de Dados
+
+### Arquivos Gerados
+
+```folder
+parquet/
+├── 2026-01/                    # Pasta por período
+│   ├── empresa/               # Dados de empresas
+│   ├── estabelecimento/       # Dados de estabelecimentos
+│   ├── simples/              # Dados do Simples Nacional
+│   ├── socio/                # Dados de sócios
+│   ├── painel_dados.parquet  # Painel consolidado
+│   └── cnpj.duckdb          # Banco de dados
+```
+
+### Formato Painel
+
+O painel consolidado combina dados de três fontes:
+
+- **Estabelecimento**: CNPJ, razão social, endereço, situação
+- **Empresa**: Nome fantasia, capital social, porte
+- **Simples**: Opção pelo Simples Nacional, data de inclusão
+
+Campos principais:
+
+- `cnpj_basico`: CNPJ raiz (8 dígitos)
+- `cnpj_completo`: CNPJ completo (14 dígitos)
+- `razao_social`: Nome empresarial
+- `nome_fantasia`: Nome fantasia
+- `uf`: Unidade Federativa
+- `municipio`: Município
+- `situacao_cadastral`: Situação (Ativa, Baixada, etc.)
+- `opcao_simples`: Se optante pelo Simples
+- `capital_social`: Capital social da empresa
+- `porte`: Porte da empresa
+
+## 🎯 Casos de Uso
+
+### 1. Análise de Mercado
+
+```python
+# Obter painel de empresas ativas por estado
+processor = CNPJProcessor()
+success, folder = processor.run(
+    step='painel',
+    painel_uf='GO',
+    painel_situacao=2
+)
+```
+
+### 2. Compliance e Due Diligence
+
+```python
+# Download completo para análise interna
+processor = CNPJProcessor()
+success, folder = processor.run(
+    step='all',
+    tipos=['empresas', 'estabelecimentos', 'socios']
+)
+```
+
+### 3. Data Science / ML
+
+```python
+# Preparar dados para modelos
+processor = CNPJProcessor()
+success, folder = processor.run(
+    step='all',
+    cleanup_after_db=True  # Mantém apenas banco final
+)
+```
+
+### 4. Dashboards BI
+
+```python
+# Gerar painel para PowerBI/Tableau
+processor = CNPJProcessor()
+success, folder = processor.run(
+    step='painel',
+    processar_painel=True
+)
+```
+
+## 🔍 Requisitos do Sistema
+
+- **Python**: 3.9 ou superior
+- **Sistema Operacional**: Windows, Linux, macOS
+- **Espaço em Disco**: Mínimo 50GB recomendado
+- **Memória RAM**: Mínimo 4GB, recomendado 8GB+
+- **Conexão Internet**: Necessária para download
+
+## 🛡️ Tratamento de Erros
+
+```python
+from cnpj_processor import CNPJProcessor
+
+processor = CNPJProcessor()
+
+try:
+    success, folder = processor.run(
+        step='all',
+        tipos=['empresas']
+    )
+    
+    if success:
+        print(f"✅ Sucesso! Dados em: {folder}")
+    else:
+        print("⚠️ Concluído com avisos. Verifique os logs.")
+        
+except KeyboardInterrupt:
+    print("\n🛑 Processamento interrompido pelo usuário")
+except Exception as e:
+    print(f"❌ Erro: {e}")
+```
+
+## 📈 Performance
+
+### Benchmarks
+
+- **Pipeline Otimizado**: 70% mais rápido que processamento sequencial
+- **Download Assíncrono**: Múltiplos arquivos simultâneos
+- **Processamento Paralelo**: Utilização eficiente de múltiplos cores
+- **Compressão Inteligente**: Arquivos Parquet com zstd
+
+### Tempos Típicos
+
+| Operação | Tempo Estimado |
+| -------- | -------------- |
+| Download completo | 5-15 minutos |
+| Processamento (todos os tipos) | 10-30 minutos |
+| Geração de banco | 2-5 minutos |
+| Painel consolidado | 5-10 minutos |
+
+> Tempos variam conforme hardware e conexão de rede
+
+## 🤝 Contribuindo
+
+Contribuições são bem-vindas! Por favor:
+
+1. Fork o repositório
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
+
+## 📝 Licença
+
+Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+
+## 🔗 Links Úteis
+
+- **PyPI**: <https://pypi.org/project/cnpj-processor/>
+- **Documentação Completa**: Ver pasta `docs/` no repositório
+- **Issues**: Reporte bugs e sugira melhorias
+- **Dados CNPJ**: [Receita Federal - Dados Públicos](https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica---cnpj)
+
+## 🙏 Agradecimentos
+
+- Receita Federal do Brasil pela disponibilização dos dados públicos
+- Comunidade Python pelo ecossistema de ferramentas excepcionais
+- Todos os contribuidores do projeto
