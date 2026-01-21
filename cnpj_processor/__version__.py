@@ -8,6 +8,7 @@ import subprocess
 
 __title__ = "CNPJ Processor"
 __author__ = "Wesley Modanez Freitas"
+__version__ = "4.0.1"
 __license__ = "MIT"
 
 def get_version():
@@ -35,7 +36,7 @@ def get_version():
 try:
     __version__ = get_version()
 except RuntimeError:
-    __version__ = "unknown"
+    __version__ = "4.0.1"
 
 def get_full_description():
     """Retorna a descrição completa da API."""
