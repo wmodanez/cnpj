@@ -222,6 +222,69 @@ PATH_REMOTE_PARQUET=//servidor/compartilhado/
 
 **Nota**: Os caminhos são automaticamente adaptados para cada sistema operacional. Use `/` ou `\` conforme sua preferência - o sistema normaliza automaticamente.
 
+## 💾 Gestão Inteligente de Espaço em Disco
+
+O sistema utiliza uma estratégia inteligente para otimizar o uso de espaço:
+
+### 📊 Comportamento Padrão
+
+```bash
+# Pipeline padrão
+python main.py
+```
+
+**O que acontece:**
+1. ✅ Download dos arquivos ZIP
+2. ✅ Extração e processamento
+3. ✅ **Remove automaticamente** ZIPs e arquivos temporários
+4. ✅ **Mantém apenas os parquets** (formato otimizado)
+5. ❌ **NÃO cria** banco DuckDB (opcional via flag)
+
+**Espaço utilizado: ~20 GB** (apenas parquets)
+
+### 🎯 Cenários de Uso
+
+#### Análise de Dados (Padrão)
+
+```bash
+python main.py
+# Espaço: ~20 GB (parquets)
+# Ideal para: Análise com Polars/Pandas
+```
+
+#### Business Intelligence
+
+```bash
+python main.py --create-database
+# Espaço: ~35 GB (parquets + banco)
+# Ideal para: PowerBI, Tableau, queries SQL
+```
+
+#### Máxima Economia
+
+```bash
+python main.py --create-database --cleanup-after-db
+# Espaço: ~15 GB (apenas banco)
+# Ideal para: Deploy em produção, servidores
+```
+
+#### Desenvolvimento/Debug
+
+```bash
+python main.py --keep-artifacts --create-database --keep-parquet-after-db
+# Espaço: ~93 GB (tudo)
+# Ideal para: Inspeção completa, debug
+```
+
+### 🆕 Novos Argumentos de Controle
+
+| Argumento | Atalho | Descrição  |
+|-----------|--------|------------|
+| `--keep-artifacts` | `-k` | Manter ZIPs e arquivos temporários |
+| `--create-database` | `-D` | Criar banco DuckDB (opcional) |
+| `--cleanup-after-db` | `-c` | Remover parquets após criar banco |
+| `--keep-parquet-after-db` | `-K` | Manter parquets após criar banco |
+
 ## 🎯 Sistema de Atalhos
 
 **🆕 NOVIDADE v3.2.0**: Sistema completo de atalhos implementado! **Reduza seus comandos em até 78%!**
@@ -478,25 +541,31 @@ python main.py -s process -p -o batch_silent -q
 # 31. Download de pasta específica com barras de progresso ativadas:
 python main.py -r 2024-01 -P
 
-# EXEMPLOS COM LIMPEZA DE ARQUIVOS (🆕 ECONOMIA MÁXIMA DE ESPAÇO):
+# EXEMPLOS COM GESTÃO DE ARTEFATOS E ESPAÇO EM DISCO:
 
-# 32. Processar dados e criar banco DuckDB, removendo arquivos parquet após criação:
-python main.py -s all -t empresas -c
+# 32. Pipeline padrão (remove ZIPs e arquivos temporários automaticamente):
+python main.py
+# Resultado: Mantém apenas parquets (~20 GB)
 
-# 33. Processar dados e criar banco DuckDB, removendo arquivos parquet E ZIP após criação:
-python main.py -s all -t empresas -C
+# 33. Manter todos os artefatos intermediários:
+python main.py -k
+# Resultado: ZIPs + descompactados + parquets (~78 GB)
 
-# 34. Criar banco DuckDB a partir de parquets existentes e remover os parquets:
-python main.py -s database -o processados_2023_05 -c
+# 34. Pipeline com criação de banco de dados:
+python main.py -D
+# Resultado: Parquets + banco DuckDB (~35 GB)
 
-# 35. Download, processamento e banco completo com limpeza total (economiza máximo espaço):
-python main.py -a -f 2023-01 -C
+# 35. Economia máxima - apenas banco de dados:
+python main.py -D -c
+# Resultado: Apenas banco DuckDB (~15 GB) ⚡
 
-# 36. Processamento conservador com deleção de ZIPs durante extração e limpeza final:
-python main.py -t estabelecimentos -d -c
+# 36. Criar banco mantendo os parquets:
+python main.py -D -K
+# Resultado: Parquets + banco (~35 GB)
 
-# 37. Economia máxima: processar estabelecimentos com todas as opções de limpeza:
-python main.py -t estabelecimentos -d -C -o economia_maxima
+# 37. Processar múltiplas pastas com economia de espaço:
+python main.py -a -f 2023-01 -D -c
+# Resultado: Apenas banco consolidado de todos os períodos
 
 # 🏢 EXEMPLOS COM PROCESSAMENTO DO PAINEL CONSOLIDADO (NOVO v3.2.1):
 

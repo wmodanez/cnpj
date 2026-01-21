@@ -68,41 +68,44 @@ EXEMPLOS DE USO DO PROCESSADOR CNPJ:
     python main.py --tipos estabelecimentos --criar-subset-uf SP
 
 === ECONOMIA DE ESPAÇO ===
-21. Remover arquivos parquet após criar banco:
-    python main.py --cleanup-after-db
+21. Manter arquivos intermediários (ZIPs e descompactados):
+    python main.py --keep-artifacts
 
-22. Remover arquivos parquet E ZIP após criar banco (máxima economia):
-    python main.py --cleanup-all-after-db
+22. Criar banco DuckDB (opcional):
+    python main.py --create-database
 
-23. Pipeline com economia máxima:
-    python main.py --delete-zips-after-extract --cleanup-all-after-db
+23. Criar banco e remover parquets após:
+    python main.py --create-database --cleanup-after-db
+
+24. Criar banco e manter parquets:
+    python main.py --create-database --keep-parquet-after-db
 
 === CONTROLE DE INTERFACE ===
-24. Modo silencioso:
+25. Modo silencioso:
     python main.py --quiet
 
-25. Forçar download mesmo se arquivo existir:
+26. Forçar download mesmo se arquivo existir:
     python main.py --force-download
 
-26. Processamento em modo verboso:
+27. Processamento em modo verboso:
     python main.py --verbose-ui
 
 === PROCESSAMENTO MÚLTIPLO ===
-27. Baixar de todas as pastas disponíveis:
+28. Baixar de todas as pastas disponíveis:
     python main.py --all-folders --step download
 
-28. Processar múltiplas pastas a partir de uma data:
+29. Processar múltiplas pastas a partir de uma data:
     python main.py --all-folders --from-folder 2023-01
 
-29. Processar todas as pastas locais:
+30. Processar todas as pastas locais:
     python main.py --step process --process-all-folders
 
 === EXEMPLOS AVANÇADOS ===
-30. Pipeline completo com painel e economia máxima:
-    python main.py --processar-painel --painel-uf SP --cleanup-all-after-db
+31. Pipeline completo com painel e banco:
+    python main.py --processar-painel --painel-uf SP --create-database
 
-31. Processamento conservador de espaço:
-    python main.py --tipos estabelecimentos --delete-zips-after-extract --cleanup-after-db
+32. Processamento com banco e limpeza total:
+    python main.py --create-database --cleanup-after-db
 
 PARÂMETROS PRINCIPAIS:
 - --show-latest-folder, --latest: Exibir a pasta remota mais recente disponível
@@ -114,9 +117,10 @@ PARÂMETROS PRINCIPAIS:
 - --processar-painel: Ativa processamento do painel consolidado
 - --painel-uf: Filtra painel por UF
 - --painel-situacao: Filtra painel por situação cadastral
-- --delete-zips-after-extract: Remove ZIPs após extração
-- --cleanup-after-db: Remove parquets após criar banco
-- --cleanup-all-after-db: Remove parquets E ZIPs após criar banco
+- --keep-artifacts: Manter ZIPs e descompactados (padrão: remove para economizar espaço)
+- --create-database: Criar banco DuckDB após processamento (padrão: não cria)
+- --cleanup-after-db: Remove parquets após criar banco (requer --create-database)
+- --keep-parquet-after-db: Manter parquets após criar banco (requer --create-database)
 - --quiet: Modo silencioso
 - --force-download: Força download mesmo se arquivo existir
 """
@@ -481,12 +485,14 @@ async def async_main():
                          help='Pasta de origem dos arquivos ZIP (para step \'process\')')
     parser.add_argument('--process-all-folders', '-p', action='store_true',
                          help='Processar todas as pastas de data (formato AAAA-MM) em PATH_ZIP')
-    parser.add_argument('--delete-zips-after-extract', '-d', action='store_true',
-                         help='Deletar arquivos ZIP após extração bem-sucedida (economiza espaço)')
+    parser.add_argument('--keep-artifacts', '-k', action='store_true',
+                         help='Manter arquivos ZIP e descompactados (por padrão são removidos para economizar espaço)')
+    parser.add_argument('--create-database', '-D', action='store_true',
+                         help='Criar banco de dados DuckDB após processamento (opcional)')
     parser.add_argument('--cleanup-after-db', '-c', action='store_true',
-                         help='Deletar arquivos parquet após criação do banco DuckDB (economiza espaço)')
-    parser.add_argument('--cleanup-all-after-db', '-C', action='store_true',
-                         help='Deletar arquivos parquet E ZIP após criação do banco (máxima economia)')
+                         help='Deletar arquivos parquet após criação do banco DuckDB (só funciona com --create-database)')
+    parser.add_argument('--keep-parquet-after-db', '-K', action='store_true',
+                         help='Manter arquivos parquet após criação do banco (só funciona com --create-database)')
     parser.add_argument('--show-progress', '-B', action='store_true',
                          help='Forçar exibição da barra de progresso (sobrescreve config)')
     parser.add_argument('--hide-progress', '-H', action='store_true',
@@ -916,13 +922,17 @@ async def async_main():
         logger.info(f"📋 Arquivos a processar: {len(zip_urls)}")
         logger.info(f"🎯 Tipos de dados: {', '.join(tipos_a_processar)}")
         
+        # Por padrão, remove artefatos (ZIPs e descompactados) para economizar espaço
+        # Use --keep-artifacts para manter os arquivos
+        delete_artifacts = not args.keep_artifacts
+        
         process_results = await optimized_download_and_process_pipeline(
             urls=zip_urls,
             source_zip_path=source_zip_path,
             unzip_path=PATH_UNZIP,
             output_parquet_path=output_parquet_path,
             tipos_a_processar=tipos_a_processar,
-            delete_zips_after_extract=args.delete_zips_after_extract,
+            delete_zips_after_extract=delete_artifacts,
             force_download=args.force_download,
             **processing_options
         )
@@ -989,63 +999,67 @@ async def async_main():
                 print_success("Processamento do painel concluído com sucesso.")
             else:
                 print_warning("Falha no processamento do painel.")
-                print_warning("⚠️ O painel consolidado não foi gerado, mas o banco de dados DuckDB será criado normalmente.")
-                logger.warning("Processamento do painel falhou, mas continuando com criação do banco")
-                logger.warning("O banco DuckDB será criado apenas com os dados das entidades individuais")
+                print_warning("⚠️ O painel consolidado não foi gerado.")
+                logger.warning("Processamento do painel falhou")
         
-        # 3. Criação do banco de dados (verificações essenciais já passaram)
-        print_section("Etapa 3: Criação do banco de dados DuckDB")
-        logger.info("🎯 Verificações essenciais passaram - prosseguindo com criação do banco")
-        db_start_time = time.time()
-        
-        try:
-            logger.info(f"Criando arquivo DuckDB em: {output_parquet_path}")
-            db_success = create_duckdb_file(output_parquet_path, FILE_DB_PARQUET)
-            db_time = time.time() - db_start_time
+        # 3. Criação do banco de dados (OPCIONAL - requer --create-database)
+        if args.create_database:
+            print_section("Etapa 3: Criação do banco de dados DuckDB (opcional)")
+            logger.info("🎯 Criação de banco solicitada via --create-database")
+            db_start_time = time.time()
             
-            if db_success:
-                logger.info("=" * 50)
-                logger.info(f"Tempo de processamento do banco: {format_elapsed_time(db_time)}")
-                db_file = os.path.join(output_parquet_path, FILE_DB_PARQUET)
-                print_success(f"Banco de dados DuckDB criado com sucesso em: {db_file}")
+            try:
+                logger.info(f"Criando arquivo DuckDB em: {output_parquet_path}")
+                db_success = create_duckdb_file(output_parquet_path, FILE_DB_PARQUET)
+                db_time = time.time() - db_start_time
                 
-                # Realizar limpeza se solicitada
-                if args.cleanup_after_db or args.cleanup_all_after_db:
-                    cleanup_zip = args.cleanup_all_after_db
+                if db_success:
+                    logger.info("=" * 50)
+                    logger.info(f"Tempo de processamento do banco: {format_elapsed_time(db_time)}")
+                    db_file = os.path.join(output_parquet_path, FILE_DB_PARQUET)
+                    print_success(f"Banco de dados DuckDB criado com sucesso em: {db_file}")
                     
-                    cleanup_success = cleanup_after_database(
-                        parquet_folder=output_parquet_path,
-                        zip_folder=source_zip_path if cleanup_zip else "",
-                        cleanup_parquet=True,  # Sempre limpar parquet se foi solicitado
-                        cleanup_zip=cleanup_zip
-                    )
+                    # Limpeza de parquets após criar banco (se solicitada)
+                    if args.cleanup_after_db and not args.keep_parquet_after_db:
+                        logger.info("🧹 Removendo arquivos parquet após criação do banco...")
+                        cleanup_success = cleanup_after_database(
+                            parquet_folder=output_parquet_path,
+                            zip_folder="",
+                            cleanup_parquet=True,
+                            cleanup_zip=False
+                        )
+                        
+                        if not cleanup_success:
+                            print_warning("Aviso: Houve problemas durante a limpeza de parquets")
+                    elif args.keep_parquet_after_db:
+                        logger.info("📦 Mantendo arquivos parquet (--keep-parquet-after-db especificado)")
                     
-                    if not cleanup_success:
-                        print_warning("Alguns arquivos podem não ter sido removidos durante a limpeza")
-                
-            else:
+                else:
+                    logger.info("=" * 50)
+                    logger.info(f"Tempo de processamento do banco (falhou): {format_elapsed_time(db_time)}")
+                    print_error("Falha ao criar banco de dados. Verifique os logs para mais detalhes.")
+                    logger.error("Criação do banco de dados falhou")
+                    total_time = time.time() - start_time
+                    logger.info("=" * 50)
+                    logger.info(f"TEMPO TOTAL DE EXECUÇÃO: {format_elapsed_time(total_time)}")
+                    logger.info("STATUS FINAL: FALHA (banco não criado)")
+                    logger.info("=" * 50)
+                    return False, ""
+            except Exception as e:
+                db_time = time.time() - db_start_time
+                logger.exception(f"Erro ao criar banco de dados: {e}")
                 logger.info("=" * 50)
-                logger.info(f"Tempo de processamento do banco (falhou): {format_elapsed_time(db_time)}")
-                print_error("Falha ao criar banco de dados. Verifique os logs para mais detalhes.")
-                logger.error("Criação do banco de dados falhou")
+                logger.info(f"Tempo de processamento do banco (erro): {format_elapsed_time(db_time)}")
+                print_error(f"Falha ao criar banco de dados: {str(e)}")
                 total_time = time.time() - start_time
                 logger.info("=" * 50)
                 logger.info(f"TEMPO TOTAL DE EXECUÇÃO: {format_elapsed_time(total_time)}")
                 logger.info("STATUS FINAL: FALHA")
                 logger.info("=" * 50)
                 return False, ""
-        except Exception as e:
-            db_time = time.time() - db_start_time
-            logger.exception(f"Erro ao criar banco de dados: {e}")
-            logger.info("=" * 50)
-            logger.info(f"Tempo de processamento do banco (erro): {format_elapsed_time(db_time)}")
-            print_error(f"Falha ao criar banco de dados: {str(e)}")
-            total_time = time.time() - start_time
-            logger.info("=" * 50)
-            logger.info(f"TEMPO TOTAL DE EXECUÇÃO: {format_elapsed_time(total_time)}")
-            logger.info("STATUS FINAL: FALHA")
-            logger.info("=" * 50)
-            return False, ""
+        else:
+            logger.info("ℹ️  Criação de banco DuckDB não solicitada (use --create-database para criar)")
+            print_section("Banco de dados DuckDB não será criado (use --create-database)")
 
     total_time = time.time() - start_time
     
@@ -1061,7 +1075,10 @@ async def async_main():
     if args.step == 'all':
         logger.info(f"Download: {format_elapsed_time(download_time)}")
         logger.info(f"Processamento: {format_elapsed_time(process_time)}")
-        logger.info(f"Criação do banco: {format_elapsed_time(db_time)}")
+        if args.create_database:
+            logger.info(f"Criação do banco: {format_elapsed_time(db_time)}")
+        else:
+            logger.info("Criação do banco: NÃO EXECUTADA (use --create-database)")
     
     logger.info(f"TEMPO TOTAL DE EXECUÇÃO: {format_elapsed_time(total_time)}")
     logger.info("=" * 50)

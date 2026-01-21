@@ -64,6 +64,13 @@ success, folder = processor.run(
 - Suporte a múltiplos tipos: empresas, estabelecimentos, sócios, simples
 - Exportação para Parquet com compressão eficiente
 
+### 💾 Gestão Inteligente de Espaço
+
+- **Limpeza automática**: Remove ZIPs e arquivos temporários por padrão
+- **Banco opcional**: DuckDB criado apenas quando solicitado
+- **Múltiplas estratégias**: De 15 GB (apenas banco) até 93 GB (tudo)
+- **Controle total**: Flags para customizar retenção de artefatos
+
 ### 🎨 Painel Consolidado
 
 - Combinação inteligente de dados de múltiplas fontes
@@ -121,9 +128,10 @@ processor.run(
 | `remote_folder` | str | Pasta remota (formato AAAA-MM) |
 | `output_subfolder` | str | Subpasta de saída |
 | `force_download` | bool | Forçar re-download |
-| `delete_zips_after_extract` | bool | Deletar ZIPs após extração |
-| `cleanup_after_db` | bool | Deletar parquets após criar banco |
-| `cleanup_all_after_db` | bool | Deletar parquets E ZIPs após banco |
+| `keep_artifacts` | bool | Manter ZIPs e arquivos temporários (padrão: False) |
+| `create_database` | bool | Criar banco DuckDB (padrão: False) |
+| `cleanup_after_db` | bool | Remover parquets após criar banco |
+| `keep_parquet_after_db` | bool | Manter parquets após criar banco |
 | `processar_painel` | bool | Processar painel consolidado |
 | `painel_uf` | str | Filtrar painel por UF |
 | `painel_situacao` | int | Filtrar por situação (1=Nula, 2=Ativa, 3=Suspensa, 4=Inapta, 8=Baixada) |
@@ -177,13 +185,15 @@ success, folder = processor.run(
 ### Exemplo 3: Processamento com Economia de Espaço
 
 ```python
-# Remove arquivos intermediários automaticamente
+# Padrão: Remove ZIPs e temporários automaticamente, mantém apenas parquets
 processor = CNPJProcessor()
+success, folder = processor.run()  # ~20 GB
+
+# Máxima economia: Criar banco e remover parquets
 success, folder = processor.run(
-    step='all',
-    delete_zips_after_extract=True,  # Remove ZIPs após extração
-    cleanup_all_after_db=True         # Remove parquets após criar banco
-)
+    create_database=True,    # Cria banco DuckDB
+    cleanup_after_db=True    # Remove parquets
+)  # ~15 GB
 ```
 
 ### Exemplo 4: Painel Analítico Customizado
@@ -236,6 +246,35 @@ success, folder = processor.run(
 )
 ```
 
+### Exemplo 7: Estratégias de Espaço em Disco
+
+```python
+processor = CNPJProcessor()
+
+# Estratégia 1: Análise de dados (padrão)
+success, folder = processor.run()
+# Espaço: ~20 GB (apenas parquets)
+
+# Estratégia 2: Com banco de dados
+success, folder = processor.run(create_database=True)
+# Espaço: ~35 GB (parquets + banco)
+
+# Estratégia 3: Máxima economia
+success, folder = processor.run(
+    create_database=True,
+    cleanup_after_db=True
+)
+# Espaço: ~15 GB (apenas banco)
+
+# Estratégia 4: Manter tudo (desenvolvimento)
+success, folder = processor.run(
+    keep_artifacts=True,
+    create_database=True,
+    keep_parquet_after_db=True
+)
+# Espaço: ~93 GB (ZIPs + temporários + parquets + banco)
+```
+
 ## 🔧 Uso via CLI
 
 O `cnpj-processor` também oferece interface completa de linha de comando:
@@ -253,8 +292,11 @@ cnpj-processor --tipos estabelecimentos
 # Painel filtrado
 cnpj-processor --step painel --painel-uf GO --painel-situacao 2
 
-# Economia de espaço
-cnpj-processor --delete-zips-after-extract --cleanup-all-after-db
+# Criar banco de dados (opcional)
+cnpj-processor --create-database
+
+# Máxima economia de espaço
+cnpj-processor --create-database --cleanup-after-db
 
 # Ver pasta mais recente disponível
 cnpj-processor --show-latest-folder
@@ -275,9 +317,13 @@ Interface otimizada com atalhos intuitivos:
 cnpj-processor --tipos empresas --step download --remote-folder 2026-01
 cnpj-processor -t empresas -s download -r 2026-01
 
-# Pipeline com economia de espaço
-cnpj-processor --delete-zips-after-extract --cleanup-after-db --quiet
-cnpj-processor -d -c -q
+# Criar banco com economia de espaço
+cnpj-processor --create-database --cleanup-after-db --quiet
+cnpj-processor -D -c -q
+
+# Manter todos os artefatos
+cnpj-processor --keep-artifacts --create-database --keep-parquet-after-db
+cnpj-processor -k -D -K
 
 # Painel filtrado
 cnpj-processor --step painel --painel-uf GO --painel-situacao 2

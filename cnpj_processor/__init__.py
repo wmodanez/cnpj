@@ -94,9 +94,10 @@ class CNPJProcessor:
             output_subfolder: str = None,
             source_zip_folder: str = None,
             force_download: bool = False,
-            delete_zips_after_extract: bool = False,
+            keep_artifacts: bool = False,
+            create_database: bool = False,
             cleanup_after_db: bool = False,
-            cleanup_all_after_db: bool = False,
+            keep_parquet_after_db: bool = False,
             processar_painel: bool = False,
             painel_uf: str = None,
             painel_situacao: int = None,
@@ -118,9 +119,10 @@ class CNPJProcessor:
             output_subfolder: Subpasta de saída para os parquets (use "." para pasta raiz)
             source_zip_folder: Pasta com arquivos ZIP para processamento
             force_download: Forçar download mesmo se arquivo existir
-            delete_zips_after_extract: Deletar ZIPs após extração bem-sucedida
-            cleanup_after_db: Deletar parquets após criação do banco
-            cleanup_all_after_db: Deletar parquets E ZIPs após criação do banco
+            keep_artifacts: Manter ZIPs e descompactados (padrão: remove para economizar espaço)
+            create_database: Criar banco DuckDB após processamento (padrão: não cria)
+            cleanup_after_db: Deletar parquets após criar banco (requer create_database=True)
+            keep_parquet_after_db: Manter parquets após criar banco (requer create_database=True)
             processar_painel: Processar dados do painel consolidado
             painel_uf: Filtrar painel por UF (ex: 'SP', 'GO')
             painel_situacao: Filtrar painel por situação cadastral (1=Nula, 2=Ativa, etc.)
@@ -145,11 +147,22 @@ class CNPJProcessor:
             ...     remote_folder='2024-05'
             ... )
             
-            >>> # Processamento com economia de espaço
+            >>> # Processamento padrão (remove artefatos intermediários)
             >>> success, folder = processor.run(
             ...     step='all',
-            ...     delete_zips_after_extract=True,
-            ...     cleanup_all_after_db=True
+            ...     tipos=['empresas', 'estabelecimentos']
+            ... )
+            
+            >>> # Manter arquivos intermediários
+            >>> success, folder = processor.run(
+            ...     step='all',
+            ...     keep_artifacts=True
+            ... )
+            
+            >>> # Criar banco de dados após processamento
+            >>> success, folder = processor.run(
+            ...     step='all',
+            ...     create_database=True
             ... )
             
             >>> # Painel filtrado por UF e situação
@@ -177,12 +190,14 @@ class CNPJProcessor:
             sys.argv.extend(['--source-zip-folder', source_zip_folder])
         if force_download:
             sys.argv.append('--force-download')
-        if delete_zips_after_extract:
-            sys.argv.append('--delete-zips-after-extract')
+        if keep_artifacts:
+            sys.argv.append('--keep-artifacts')
+        if create_database:
+            sys.argv.append('--create-database')
         if cleanup_after_db:
             sys.argv.append('--cleanup-after-db')
-        if cleanup_all_after_db:
-            sys.argv.append('--cleanup-all-after-db')
+        if keep_parquet_after_db:
+            sys.argv.append('--keep-parquet-after-db')
         if processar_painel:
             sys.argv.append('--processar-painel')
         if painel_uf:
