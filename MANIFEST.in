@@ -2,6 +2,7 @@
 include README.md
 include LICENSE
 include requirements.txt
+include VERSION
 include VERSIONAMENTO.md
 include README_*.md
 include ATALHOS.md

@@ -11,9 +11,16 @@ with open(readme_path, "r", encoding="utf-8") as fh:
 with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
-# Obter versão do git tag (fonte única de verdade)
-def get_version_from_git():
-    """Obtém versão da tag git mais recente."""
+# Obter versão do git tag ou arquivo VERSION
+def get_version():
+    """Obtém versão da tag git ou arquivo VERSION."""
+    # Tentar ler arquivo VERSION (criado durante sdist)
+    version_file = os.path.join(os.path.dirname(__file__), 'VERSION')
+    if os.path.exists(version_file):
+        with open(version_file, 'r') as f:
+            return f.read().strip()
+    
+    # Tentar obter do git
     try:
         result = subprocess.run(
             ['git', 'describe', '--tags', '--abbrev=0'],
@@ -24,7 +31,13 @@ def get_version_from_git():
         if result.returncode == 0:
             version = result.stdout.strip()
             # Remove 'v' prefix se existir
-            return version[1:] if version.startswith('v') else version
+            version = version[1:] if version.startswith('v') else version
+            
+            # Salvar versão em arquivo para builds futuros
+            with open(version_file, 'w') as f:
+                f.write(version)
+            
+            return version
     except Exception as e:
         print(f"Erro ao obter versão do git: {e}")
     
@@ -34,7 +47,7 @@ def get_version_from_git():
         "python scripts/release.py --major|--minor|--patch"
     )
 
-version = get_version_from_git()
+version = get_version()
 
 setup(
     name="cnpj-processor",
