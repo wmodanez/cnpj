@@ -880,7 +880,8 @@ async def async_main():
             output_parquet_path = PATH_PARQUET
         elif args.output_subfolder:
             # Usar subpasta especificada
-            output_parquet_path = os.path.join(PATH_PARQUET, args.output_subfolder)
+            # Se for caminho relativo com .., resolver para caminho absoluto
+            output_parquet_path = os.path.normpath(os.path.join(PATH_PARQUET, args.output_subfolder))
         else:
             # Padrão: usar nome da pasta remota
             output_parquet_path = os.path.join(PATH_PARQUET, latest_folder)
@@ -977,6 +978,23 @@ async def async_main():
             return False, ""
         else:
             print_success("Verificação de integridade dos parquets concluída com sucesso.")
+        
+        # 2.4. Limpeza de pastas de trabalho
+        if args.delete_zips_after_extract:
+            logger.info("🧹 Removendo pastas de trabalho (dados-abertos e dados-abertos-zip)...")
+            try:
+                # Remover pasta de dados descompactados
+                if os.path.exists(PATH_UNZIP):
+                    import shutil
+                    shutil.rmtree(PATH_UNZIP, ignore_errors=True)
+                    logger.info(f"✅ Pasta removida: {PATH_UNZIP}")
+                
+                # Remover pasta de ZIPs baixados
+                if os.path.exists(PATH_ZIP):
+                    shutil.rmtree(PATH_ZIP, ignore_errors=True)
+                    logger.info(f"✅ Pasta removida: {PATH_ZIP}")
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao remover pastas de trabalho: {e}")
         
         # 2.5. Processamento do Painel (se solicitado)
         if args.processar_painel:
@@ -1638,4 +1656,4 @@ def cleanup_after_database(parquet_folder: str, zip_folder: str = "", cleanup_pa
         return False
 
 if __name__ == '__main__':
-    main()
+    _ = main()  # Capturar retorno sem imprimi-lo
