@@ -254,17 +254,6 @@ async def adaptive_network_test() -> Dict[str, any]:
     Returns:
         Dict com resultados completos e recomendações
     """
-    # logger.info("🌐 Iniciando teste adaptativo de rede...")
-    
-    # # Verificação básica de conectividade
-    # is_connected, connection_msg = check_internet_connection()
-    # if not is_connected:
-    #     return {
-    #         "connected": False,
-    #         "message": connection_msg,
-    #         "recommendations": get_network_recommendations("no_connection", 0)
-    #     }
-    
     # Teste de qualidade da conexão
     quality_results = await check_connection_quality()
     
@@ -278,6 +267,9 @@ async def adaptive_network_test() -> Dict[str, any]:
         quality_results["connection_quality"],
         speed_results["download_speed_mbps"]
     )
+    
+    # Definir mensagem de conexão baseada na qualidade
+    connection_msg = f"Conexão {quality_results['connection_quality']}"
     
     results = {
         "connected": True,

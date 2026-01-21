@@ -36,10 +36,13 @@ class ColoredFormatter(logging.Formatter):
 
 def setup_logging():
     """Configura o sistema de logging."""
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
+    # Determinar pasta raiz do projeto (2 níveis acima deste arquivo: src/utils/logging.py)
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    logs_dir = os.path.join(project_root, 'logs')
+    if not os.path.exists(logs_dir):
+        os.makedirs(logs_dir)
 
-    log_filename = f'logs/cnpj_process_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+    log_filename = os.path.join(logs_dir, f'cnpj_process_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
     log_format = '%(asctime)s - %(levelname)s - %(message)s'
     date_format = '%Y-%m-%d %H:%M:%S'
 

@@ -249,10 +249,13 @@ def check_disk_space() -> bool:
 
 def setup_logging(log_level_str: str):
     """Configura o sistema de logging com base no nível fornecido."""
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
+    # Determinar pasta raiz do projeto (onde está o main.py)
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    logs_dir = os.path.join(project_root, 'logs')
+    if not os.path.exists(logs_dir):
+        os.makedirs(logs_dir)
 
-    log_filename = f'logs/cnpj_process_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+    log_filename = os.path.join(logs_dir, f'cnpj_process_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
     log_format = '%(asctime)s - %(levelname)s - %(message)s'
     date_format = '%Y-%m-%d %H:%M:%S'
 
@@ -452,7 +455,7 @@ async def async_main():
     download_time = 0.0
     process_time = 0.0
     db_time = 0.0
-    latest_folder = ""
+    remote_folder = ""
     
     # Parser de argumentos
     parser = argparse.ArgumentParser(
@@ -489,6 +492,8 @@ async def async_main():
                          help='Processar todas as pastas de data (formato AAAA-MM) em PATH_ZIP')
     parser.add_argument('--keep-artifacts', '-k', action='store_true',
                          help='Manter arquivos ZIP e descompactados (por padrão são removidos para economizar espaço)')
+    parser.add_argument('--delete-zips-after-extract', action='store_true', dest='delete_zips_after_extract',
+                         help='Deletar arquivos ZIP após extração (padrão)')
     parser.add_argument('--create-database', '-D', action='store_true',
                          help='Criar banco de dados DuckDB após processamento (opcional)')
     parser.add_argument('--cleanup-after-db', '-c', action='store_true',
@@ -527,11 +532,11 @@ async def async_main():
                 print("❌ BASE_URL não definida no arquivo .env")
                 return False, ""
             
-            latest_folder = await get_latest_remote_folder(base_url)
+            remote_folder = await get_latest_remote_folder(base_url)
             
-            if latest_folder:
-                print(latest_folder)
-                return True, latest_folder
+            if remote_folder:
+                print(remote_folder)
+                return True, remote_folder
             else:
                 print("❌ Não foi possível determinar a pasta remota mais recente")
                 return False, ""
@@ -566,10 +571,22 @@ async def async_main():
     # Carregar variáveis de ambiente
     load_dotenv()
     print_header("Carregando variáveis de ambiente...")
-    PATH_ZIP = os.getenv('PATH_ZIP', './dados-zip')
-    PATH_UNZIP = os.getenv('PATH_UNZIP', './dados-unzip')
-    PATH_PARQUET = os.getenv('PATH_PARQUET', './dados-parquet')
+    PATH_ZIP = os.getenv('PATH_ZIP', './dados-abertos-zip')
+    PATH_UNZIP = os.getenv('PATH_UNZIP', './dados-abertos')
+    PATH_PARQUET = os.getenv('PATH_PARQUET', './parquet')
     FILE_DB_PARQUET = os.getenv('FILE_DB_PARQUET', 'cnpj.duckdb')
+    
+    # Usar o diretório de trabalho atual (onde o comando foi executado)
+    # Isso garante que os arquivos sejam salvos onde o usuário está executando o comando
+    project_root = os.getcwd()
+    
+    # Resolver caminhos relativos para absolutos baseado no CWD
+    if not os.path.isabs(PATH_ZIP):
+        PATH_ZIP = os.path.abspath(os.path.join(project_root, PATH_ZIP))
+    if not os.path.isabs(PATH_UNZIP):
+        PATH_UNZIP = os.path.abspath(os.path.join(project_root, PATH_UNZIP))
+    if not os.path.isabs(PATH_PARQUET):
+        PATH_PARQUET = os.path.abspath(os.path.join(project_root, PATH_PARQUET))
     
     if PATH_ZIP and PATH_UNZIP and PATH_PARQUET:
         print_success("Variáveis de ambiente carregadas com sucesso")
@@ -619,8 +636,8 @@ async def async_main():
         else:
             # Tentar determinar a pasta mais recente ou usar --remote-folder
             if args.remote_folder:
-                latest_folder = args.remote_folder
-                logger.info(f"Usando pasta remota especificada para painel: {latest_folder}")
+                remote_folder_painel = args.remote_folder
+                logger.info(f"Usando pasta remota especificada para painel: {remote_folder_painel}")
             else:
                 # Obter pasta mais recente
                 try:
@@ -628,17 +645,17 @@ async def async_main():
                     if not base_url:
                         logger.error("BASE_URL não definida no arquivo .env")
                         return False, ""
-                    latest_folder = await get_latest_remote_folder(base_url)
-                    if not latest_folder:
+                    remote_folder_painel = await get_latest_remote_folder(base_url)
+                    if not remote_folder_painel:
                         logger.error("Não foi possível determinar a pasta remota. Use --source-zip-folder ou --remote-folder")
                         return False, ""
-                    logger.info(f"Pasta mais recente detectada para painel: {latest_folder}")
+                    logger.info(f"Pasta mais recente detectada para painel: {remote_folder_painel}")
                 except Exception as e:
                     logger.error(f"Erro ao obter pasta remota: {e}")
                     logger.error("Use --source-zip-folder para especificar os dados a processar")
                     return False, ""
 
-            source_zip_path = os.path.join(PATH_ZIP, latest_folder)
+            source_zip_path = os.path.join(PATH_ZIP, remote_folder)
         
         # Definir pasta de saída
         if args.output_subfolder == ".":
@@ -649,7 +666,7 @@ async def async_main():
             output_parquet_path = os.path.join(PATH_PARQUET, args.output_subfolder)
         else:
             # Padrão: usar nome da pasta remota
-            output_parquet_path = os.path.join(PATH_PARQUET, latest_folder)
+            output_parquet_path = os.path.join(PATH_PARQUET, remote_folder)
         
         logger.info(f"Processando painel com dados de: {source_zip_path}")
         logger.info(f"Salvando painel em: {output_parquet_path}")
@@ -706,22 +723,22 @@ async def async_main():
 
         # Determinar pasta remota a usar
         if args.remote_folder:
-            latest_folder = args.remote_folder
-            logger.info(f"Usando pasta remota especificada: {latest_folder}")
+            remote_folder_download = args.remote_folder
+            logger.info(f"Usando pasta remota especificada: {remote_folder_download}")
         else:
             # Obter pasta mais recente
             base_url = os.getenv('BASE_URL')
             if not base_url:
                 logger.error("BASE_URL não definida no arquivo .env")
                 return False, ""
-            latest_folder = await get_latest_remote_folder(base_url)
-            if not latest_folder:
+            remote_folder_download = await get_latest_remote_folder(base_url)
+            if not remote_folder_download:
                 logger.error("Não foi possível determinar a pasta remota mais recente. Use --remote-folder.")
                 return False, ""
-            logger.info(f"Pasta remota mais recente: {latest_folder}")
+            logger.info(f"Pasta remota mais recente: {remote_folder_download}")
 
         # Definir caminho de destino dos ZIPs
-        source_zip_path = os.path.join(PATH_ZIP, latest_folder)
+        source_zip_path = os.path.join(PATH_ZIP, remote_folder_download)
         os.makedirs(source_zip_path, exist_ok=True)
         logger.info(f"Arquivos ZIP serão salvos em: {source_zip_path}")
 
@@ -858,33 +875,46 @@ async def async_main():
         
         # Determinar pasta remota a usar
         if remote_folder_param:
-            latest_folder = remote_folder_param
-            logger.info(f"Usando pasta remota especificada: {latest_folder}")
+            remote_folder = remote_folder_param
+            logger.info(f"Usando pasta remota especificada: {remote_folder}")
         else:
             # Obter pasta mais recente
             base_url = os.getenv('BASE_URL')
             if not base_url:
                 logger.error("BASE_URL não definida no arquivo .env")
                 return False, ""
-            latest_folder = await get_latest_remote_folder(base_url)
-            if not latest_folder:
+            remote_folder = await get_latest_remote_folder(base_url)
+            if not remote_folder:
                 logger.error("Não foi possível determinar a pasta remota mais recente")
                 return False, ""
-            logger.info(f"Pasta remota mais recente: {latest_folder}")
+            logger.info(f"Pasta remota mais recente: {remote_folder}")
 
         # Definir caminhos
-        source_zip_path = os.path.join(PATH_ZIP, latest_folder)
+        source_zip_path = os.path.join(PATH_ZIP, remote_folder)
         # Definir pasta de saída
         if args.output_subfolder == ".":
             # Usar "." para pasta raiz (incluir pasta remota)
-            output_parquet_path = os.path.join(PATH_PARQUET, latest_folder)
+            output_parquet_path = os.path.join(PATH_PARQUET, remote_folder)
         elif args.output_subfolder:
-            # Usar subpasta especificada dentro da pasta remota
-            # --output-subfolder simples -> parquet/XXXX-XX/simples
-            output_parquet_path = os.path.normpath(os.path.join(PATH_PARQUET, latest_folder, args.output_subfolder))
+            # Resolver o caminho de output_subfolder (pode ser relativo ou absoluto)
+            # Se começar com '..' ou '.', resolver relativamente ao diretório de trabalho atual
+            if args.output_subfolder.startswith('..') or args.output_subfolder.startswith('.'):
+                # Resolver caminho relativo a partir do CWD (onde o comando foi executado)
+                resolved_output = os.path.normpath(os.path.join(os.getcwd(), args.output_subfolder))
+            else:
+                # Caminho absoluto ou nome de subpasta
+                if os.path.isabs(args.output_subfolder):
+                    resolved_output = args.output_subfolder
+                else:
+                    # Nome de subpasta dentro de PATH_PARQUET
+                    resolved_output = os.path.join(PATH_PARQUET, args.output_subfolder)
+            
+            # Adicionar pasta remota após o destino informado
+            # Estrutura final: PASTA_INFORMADA/XXXX-XX/simples
+            output_parquet_path = os.path.join(resolved_output, remote_folder)
         else:
             # Padrão: usar nome da pasta remota
-            output_parquet_path = os.path.join(PATH_PARQUET, latest_folder)
+            output_parquet_path = os.path.join(PATH_PARQUET, remote_folder)
         os.makedirs(source_zip_path, exist_ok=True)
         os.makedirs(output_parquet_path, exist_ok=True)
         
@@ -899,7 +929,7 @@ async def async_main():
             logger.error("BASE_URL não definida no arquivo .env")
             return False, ""
             
-        zip_urls, _ = get_latest_month_zip_urls(base_url, latest_folder)
+        zip_urls, _ = get_latest_month_zip_urls(base_url, remote_folder)
             
         # Filtrar URLs por tipos desejados
         tipos_desejados = args.tipos if args.tipos else ['empresas', 'estabelecimentos', 'simples', 'socios']
@@ -939,6 +969,21 @@ async def async_main():
             force_download=args.force_download,
             **processing_options
         )
+        
+        # Remover completamente as pastas de trabalho se delete_artifacts está ativo
+        if delete_artifacts:
+            logger.info("🧹 Removendo pastas de trabalho (dados-abertos e dados-abertos-zip)...")
+            import shutil
+            try:
+                if os.path.exists(PATH_UNZIP):
+                    shutil.rmtree(PATH_UNZIP)
+                    logger.info(f"✅ Pasta removida: {PATH_UNZIP}")
+                if os.path.exists(source_zip_path):
+                    # Remover apenas a pasta específica da remote_folder em PATH_ZIP
+                    shutil.rmtree(source_zip_path)
+                    logger.info(f"✅ Pasta removida: {source_zip_path}")
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao remover pastas de trabalho: {e}")
         
         pipeline_time = time.time() - pipeline_start_time
         logger.info("=" * 50)
@@ -1008,7 +1053,7 @@ async def async_main():
                 uf_filter=args.painel_uf,
                 situacao_filter=args.painel_situacao,
                 output_filename=None,  # Será gerado automaticamente
-                remote_folder=latest_folder  # Usar latest_folder aqui
+                remote_folder=remote_folder
             )
             
             painel_time = time.time() - painel_start_time
@@ -1107,7 +1152,7 @@ async def async_main():
     # Exibir relatório detalhado de estatísticas
     global_stats.print_detailed_report()
         
-    return overall_success, latest_folder
+    return overall_success, remote_folder
 
 def process_painel_complete(source_zip_path: str, unzip_path: str, output_parquet_path: str, 
                           uf_filter: str | None = None, situacao_filter: int | None = None, 
@@ -1656,4 +1701,4 @@ def cleanup_after_database(parquet_folder: str, zip_folder: str = "", cleanup_pa
         return False
 
 if __name__ == '__main__':
-    _ = main()  # Capturar retorno sem imprimi-lo
+    main()  # Executar sem imprimir o retorno

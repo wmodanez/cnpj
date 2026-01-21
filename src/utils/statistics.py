@@ -378,7 +378,10 @@ class ProcessingStatistics:
         """Salva as estatísticas em arquivo JSON"""
         if filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"logs/estatisticas_cnpj_{timestamp}.json"
+            # Determinar pasta raiz do projeto (2 níveis acima deste arquivo)
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            logs_dir = os.path.join(project_root, 'logs')
+            filename = os.path.join(logs_dir, f"estatisticas_cnpj_{timestamp}.json")
         
         # Criar diretório se não existir
         os.makedirs(os.path.dirname(filename), exist_ok=True)
