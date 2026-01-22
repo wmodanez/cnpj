@@ -750,7 +750,7 @@ async def async_main():
             logger.error("BASE_URL não definida no arquivo .env")
             return False, ""
             
-        zip_urls, _ = get_latest_month_zip_urls(base_url, latest_folder)
+        zip_urls, _ = get_latest_month_zip_urls(base_url, remote_folder)
             
         # Filtrar URLs por tipos desejados, se especificado
         if args.tipos:
