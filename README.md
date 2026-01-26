@@ -1,8 +1,8 @@
 # Processador de Dados CNPJ 🏢
 
-> **🆕 Versão 3.7.0 (Publicada no PyPI)** - API Pública + Sistema Completamente Otimizado com Exportação para Parquet, Atalhos e Publicação Automática
+> **🆕 Versão 4.0.9** - Processamento Otimizado + Descompactação Independente + Padronização Automática de Colunas
 >
-> A partir da versão **3.7.0**, o projeto está **publicado no PyPI** como `cnpj-processor`. Esta versão representa a **primeira publicação oficial** combinando o sistema completo com **exportação de dados para parquet**, **sistema de atalhos**, **versionamento unificado**, **publicação automática via script** e infraestrutura moderna. O sistema anterior (v2.x) foi completamente reestruturado utilizando padrões de design modernos e infraestrutura unificada.
+> A partir da versão **4.0.9**, o sistema agora oferece **descompactação independente** com `--step extract` e **padronização automática de nomes de colunas CSV** como padrão no processamento. Estas funcionalidades complementam o pipeline existente, permitindo maior flexibilidade no fluxo de trabalho e garantindo que todos os arquivos CSV sejam automaticamente padronizados com os nomes de colunas esperados.
 
 Este projeto automatiza o download, processamento e armazenamento dos dados públicos de CNPJ disponibilizados pela Receita Federal. Ele foi desenvolvido para ser eficiente, resiliente, modular e fácil de usar.
 
@@ -24,6 +24,40 @@ O sistema detecta automaticamente o sistema operacional e usa as APIs nativas ma
 - **Fallback Universal**: `shutil.disk_usage()` para máxima compatibilidade
 
 Todas as funcionalidades foram testadas e validadas em múltiplas plataformas, garantindo experiência consistente independente do sistema operacional.
+
+## 🚀 O que há de Novo na Versão 4.0.9
+
+**✨ PROCESSAMENTO AVANÇADO (janeiro 2026):**
+
+- ✅ **Descompactação Independente**: Novo `--step extract` para apenas descompactar ZIPs sem processar
+  - Útil para análise manual de dados
+  - Flexibilidade no fluxo de trabalho
+  - Comando: `python main.py --step extract --source-zip-folder dados-abertos-zip/2026-01`
+  
+- ✅ **Padronização Automática de Colunas**: Renomeação automática de colunas CSV para formato esperado
+  - Acontece automaticamente durante processamento normal
+  - Garante compatibilidade com schema esperado
+  - Sem necessidade de etapa adicional separada
+  - Colunas genéricas (column_1, column_2, etc.) → nomes padronizados automaticamente
+
+- ✅ **Maior Flexibilidade**: Novo workflow com 3 etapas independentes:
+  1. Download - `--step download`
+  2. Descompactação - `--step extract`
+  3. Processamento - `--step process`
+
+**Workflow Exemplo Versão 4.0.9:**
+
+```bash
+# Opção 1: Pipeline tradicional (tudo junto)
+python main.py
+
+# Opção 2: Etapa por etapa
+python main.py --step download --remote-folder 2026-01
+python main.py --step extract --source-zip-folder dados-abertos-zip/2026-01
+python main.py --step process --source-zip-folder dados-abertos-zip/2026-01 --output-subfolder processados
+```
+
+---
 
 ## 🚀 O que há de Novo na Versão 3.5.0
 
@@ -742,18 +776,27 @@ O sistema agora utiliza um **pipeline revolucionário** que elimina a latência 
     *Verifica a integridade básica dos arquivos baixados.
     ***Pipeline Imediato**: Não espera todos os downloads para iniciar processamento
 
-2.**Processamento para Parquet (`--step process` ou `all`) - PROCESSAMENTO IMEDIATO**
+2.**Descompactação (`--step extract` ou `all`) - OPCIONAL**
+    *Descompacta arquivos ZIP para análise manual ou processamento posterior.
+    *Útil quando você quer inspecionar os CSVs antes de processá-los.
+    *Comando: `python main.py --step extract --source-zip-folder dados-abertos-zip/2026-01`
+    *Não realiza processamento ou transformação de dados.
+    *Apenas extrai arquivos para pasta de destino.
+
+3.**Processamento para Parquet (`--step process` ou `all`) - PROCESSAMENTO IMEDIATO**
     *No pipeline otimizado, ocorre simultaneamente com download
     *Lê arquivos ZIP de uma pasta de origem (`--source-zip-folder`).
     *Extrai o conteúdo de cada ZIP para uma subpasta temporária.
     *Processa os arquivos de dados (CSV ou similar):
-        *Aplica transformações (renomeação, conversão de tipos, etc.).
+        *Aplica transformações (renomeação automática de colunas, conversão de tipos, etc.).
+        *Padroniza automaticamente nomes de colunas para formato esperado.
         *Gera arquivos Parquet otimizados e particionados na subpasta de saída (`--output-subfolder`).
         *Cria subsets opcionais (`--criar-empresa-privada`, `--criar-subset-uf`).
     *Limpa as subpastas temporárias.
     ***Eficiência**: Processamento imediato elimina tempo de espera
+    ***Padronização Automática**: Todos os CSVs têm colunas renomeadas automaticamente
 
-3.**Criação do Banco de Dados (`--step database` ou `all`)**
+4.**Criação do Banco de Dados (`--step database` ou `all`)**
     *Lê os arquivos Parquet de uma subpasta especificada (`--output-subfolder`).
     *Cria ou atualiza um arquivo de banco de dados DuckDB (`cnpj.duckdb` por padrão).
     *Cria tabelas no DuckDB para cada tipo de dado encontrado (empresas, estabelecimentos, socios, simples, e tabelas auxiliares como cnae, municipio, etc., se presentes na pasta `base`).

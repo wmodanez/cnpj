@@ -123,7 +123,7 @@ processor.run(
 
 | Parâmetro | Tipo | Descrição |
 | --------- | ---- | --------- |
-| `step` | str | Etapa: 'download', 'process', 'database', 'painel', 'all' |
+| `step` | str | Etapa: 'download', 'extract', 'process', 'database', 'painel', 'all' |
 | `tipos` | list | Tipos a processar: ['empresas', 'estabelecimentos', 'simples', 'socios'] |
 | `remote_folder` | str | Pasta remota (formato AAAA-MM) |
 | `output_subfolder` | str | Subpasta de saída |
@@ -225,7 +225,23 @@ for pasta in pastas:
     print(f"{'✅' if success else '❌'} {pasta}")
 ```
 
-### Exemplo 6: Subset Especializado
+### Exemplo 6: Descompactação de ZIPs
+
+```python
+# Apenas descompactar arquivos ZIP (sem processar)
+processor = CNPJProcessor()
+success, folder = processor.run(
+    step='extract',
+    source_zip_folder='dados-abertos-zip/2026-01'
+)
+
+# Útil quando você:
+# - Quer verificar conteúdo dos ZIPs manualmente
+# - Prefere fazer o processamento depois
+# - Usa ferramentas externas para análise dos CSVs
+```
+
+### Exemplo 7: Subset Especializado
 
 ```python
 # Apenas empresas privadas
@@ -246,7 +262,7 @@ success, folder = processor.run(
 )
 ```
 
-### Exemplo 7: Estratégias de Espaço em Disco
+### Exemplo 8: Estratégias de Espaço em Disco
 
 ```python
 processor = CNPJProcessor()
@@ -285,6 +301,9 @@ cnpj-processor
 
 # Download de pasta específica
 cnpj-processor --step download --remote-folder 2026-01
+
+# Apenas descompactar ZIPs (sem processar)
+cnpj-processor --step extract --source-zip-folder dados-abertos-zip/2026-01
 
 # Processar apenas estabelecimentos
 cnpj-processor --tipos estabelecimentos

@@ -18,83 +18,86 @@ EXEMPLOS DE USO DO PROCESSADOR CNPJ:
 5. Apenas download:
    python main.py --step download
 
-6. Apenas processamento (usando ZIPs já baixados):
-   python main.py --step process --source-zip-folder dados-abertos-zip/2024-05
+6. Apenas descompactação (sem processar):
+   python main.py --step extract --source-zip-folder dados-abertos-zip/2024-05
 
-7. Apenas criação do banco DuckDB:
+7. Apenas processamento (usando ZIPs já baixados/descompactados):
+   python main.py --step process --source-zip-folder dados-abertos-zip/2024-05 --output-subfolder processados
+
+8. Apenas criação do banco DuckDB:
    python main.py --step database --output-subfolder processados_2024_05
 
-8. Apenas processamento do painel:
+9. Apenas processamento do painel:
    python main.py --step painel --remote-folder 2024-05
 
 === CONTROLE DE PASTAS ===
-9. Salvar em subpasta específica:
+10. Salvar em subpasta específica:
    python main.py --output-subfolder meu_processamento
 
-10. Salvar na pasta raiz do parquet:
+11. Salvar na pasta raiz do parquet:
     python main.py --output-subfolder .
 
-11. Processar de pasta ZIP específica:
+12. Processar de pasta ZIP específica:
     python main.py --step process --source-zip-folder "D:/MeusDownloads/CNPJ_ZIPs/2024-01"
 
-12. Exibir a pasta remota mais recente disponível:
+13. Exibir a pasta remota mais recente disponível:
     python main.py --show-latest-folder
     python main.py --latest
 
 === PROCESSAMENTO DO PAINEL CONSOLIDADO ===
-13. Painel completo sem filtros:
+14. Painel completo sem filtros:
     python main.py --processar-painel
 
-14. Painel filtrado por UF:
+15. Painel filtrado por UF:
     python main.py --processar-painel --painel-uf SP
 
-15. Painel filtrado por situação (2=Ativa):
+16. Painel filtrado por situação (2=Ativa):
     python main.py --processar-painel --painel-situacao 2
 
-16. Painel com filtros combinados:
+17. Painel com filtros combinados:
     python main.py --processar-painel --painel-uf GO --painel-situacao 2
 
-17. Processamento exclusivo do painel (usando dados já processados):
+18. Processamento exclusivo do painel (usando dados já processados):
     python main.py --step painel --remote-folder 2024-05
 
-18. Painel na pasta raiz:
+19. Painel na pasta raiz:
     python main.py --step painel --remote-folder 2024-05 --output-subfolder .
 
 === SUBCONJUNTOS E FILTROS ===
-19. Criar subconjunto de empresas privadas:
+20. Criar subconjunto de empresas privadas:
     python main.py --tipos empresas --criar-empresa-privada
 
-20. Criar subconjunto por UF (estabelecimentos):
+21. Criar subconjunto por UF (estabelecimentos):
     python main.py --tipos estabelecimentos --criar-subset-uf SP
 
 === ECONOMIA DE ESPAÇO ===
-21. Manter arquivos intermediários (ZIPs e descompactados):
+22. Manter arquivos intermediários (ZIPs e descompactados):
     python main.py --keep-artifacts
 
-22. Criar banco DuckDB (opcional):
+23. Criar banco DuckDB (opcional):
     python main.py --create-database
 
-23. Criar banco e remover parquets após:
+24. Criar banco e remover parquets após:
     python main.py --create-database --cleanup-after-db
 
-24. Criar banco e manter parquets:
+25. Criar banco e manter parquets:
     python main.py --create-database --keep-parquet-after-db
 
 === CONTROLE DE INTERFACE ===
-25. Modo silencioso:
+26. Modo silencioso:
     python main.py --quiet
 
-26. Forçar download mesmo se arquivo existir:
+27. Forçar download mesmo se arquivo existir:
     python main.py --force-download
 
-27. Processamento em modo verboso:
+28. Processamento em modo verboso:
     python main.py --verbose-ui
 
 === PROCESSAMENTO MÚLTIPLO ===
-28. Baixar de todas as pastas disponíveis:
+29. Baixar de todas as pastas disponíveis:
     python main.py --all-folders --step download
 
-29. Processar múltiplas pastas a partir de uma data:
+30. Processar múltiplas pastas a partir de uma data:
     python main.py --all-folders --from-folder 2023-01
 
 30. Processar todas as pastas locais:
@@ -110,7 +113,7 @@ EXEMPLOS DE USO DO PROCESSADOR CNPJ:
 PARÂMETROS PRINCIPAIS:
 - --show-latest-folder, --latest: Exibir a pasta remota mais recente disponível
 - --tipos: Especifica quais dados processar (empresas, estabelecimentos, simples, socios)
-- --step: Define a etapa (download, process, database, painel, all)
+- --step: Define a etapa (download, extract, process, database, painel, all)
 - --remote-folder: Usa pasta remota específica (formato AAAA-MM)
 - --output-subfolder: Define subpasta de saída (use "." para pasta raiz)
 - --source-zip-folder: Especifica pasta com ZIPs para processamento
@@ -464,7 +467,7 @@ async def async_main():
     
     parser.add_argument('--tipos', '-t', nargs='+', choices=['empresas', 'estabelecimentos', 'simples', 'socios'],
                          default=[], help='Tipos de dados a serem processados. Se não especificado, processa todos (relevante para steps \'process\' e \'all\').')
-    parser.add_argument('--step', '-s', choices=['download', 'process', 'database', 'painel', 'all'], default='all',
+    parser.add_argument('--step', '-s', choices=['download', 'extract', 'process', 'database', 'painel', 'all'], default='all',
                          help='Etapa a ser executada. Padrão: all')
     parser.add_argument('--quiet', '-q', action='store_true',
                          help='Modo silencioso - reduz drasticamente as saídas no console')
@@ -777,6 +780,81 @@ async def async_main():
             print_error(f"Download concluído com {len(failed_downloads)} falhas em {format_elapsed_time(download_time)}")
             overall_success = False
 
+            return False, ""
+
+    # 🆕 Adicionar bloco para --step extract
+    elif args.step == 'extract':
+        print_header("Etapa 2: Apenas Descompactação de Arquivos ZIP")
+
+        if not args.source_zip_folder:
+            logger.error("Para a etapa 'extract', o argumento --source-zip-folder é obrigatório.")
+            return False, ""
+
+        source_zip_path = args.source_zip_folder
+        
+        # Se o caminho for relativo, resolver em relação ao PATH_ZIP
+        if not os.path.isabs(source_zip_path):
+            source_zip_path = os.path.join(PATH_ZIP, source_zip_path)
+        
+        # Validar que o caminho existe
+        if not os.path.exists(source_zip_path):
+            logger.error(f"Pasta de origem dos ZIPs não encontrada: {source_zip_path}")
+            return False, ""
+
+        logger.info(f"Descompactando arquivos de: {source_zip_path}")
+        logger.info(f"Extraindo para: {PATH_UNZIP}")
+
+        # Obter lista de arquivos ZIP para descompactar
+        try:
+            zip_files = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')]
+            if not zip_files:
+                logger.warning("Nenhum arquivo ZIP encontrado para descompactar.")
+                return True, ""
+        except FileNotFoundError:
+            logger.error(f"Pasta de origem dos ZIPs não encontrada: {source_zip_path}")
+            return False, ""
+
+        # Importar função de descompactação
+        from src.utils.files import file_extractor
+
+        # Executar descompactação
+        extract_start_time = time.time()
+        
+        try:
+            logger.info(f"🔄 Iniciando descompactação de {len(zip_files)} arquivos ZIP")
+            
+            # Criar diretório de destino se não existir
+            os.makedirs(PATH_UNZIP, exist_ok=True)
+            
+            # Descompactar todos os arquivos ZIP
+            file_extractor(source_zip_path, PATH_UNZIP, '*.zip')
+            
+            extract_time = time.time() - extract_start_time
+            
+            print_success(f"Descompactação concluída em {format_elapsed_time(extract_time)}")
+            logger.info(f"✅ {len(zip_files)} arquivos ZIP descompactados com sucesso")
+            logger.info(f"📁 Arquivos extraídos em: {PATH_UNZIP}")
+            
+            total_time = time.time() - start_time
+            logger.info("=" * 50)
+            logger.info(f"TEMPO TOTAL DE EXECUÇÃO: {format_elapsed_time(total_time)}")
+            logger.info("STATUS FINAL: SUCESSO")
+            logger.info("=" * 50)
+            
+            # Finalizar estatísticas
+            global_stats.end_session()
+            global_stats.print_detailed_report()
+            
+            return True, "extract"
+            
+        except Exception as e:
+            extract_time = time.time() - extract_start_time
+            logger.error(f"❌ Erro durante descompactação: {e}")
+            logger.info("=" * 50)
+            logger.info(f"TEMPO TOTAL DE EXECUÇÃO: {format_elapsed_time(extract_time)}")
+            logger.info("STATUS FINAL: FALHA")
+            logger.info("=" * 50)
+            
             return False, ""
 
     # 🆕 CORREÇÃO: Adicionar bloco para --step process
