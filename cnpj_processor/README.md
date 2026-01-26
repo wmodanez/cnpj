@@ -241,6 +241,11 @@ success, folder = processor.run(
 # - Quer verificar conteúdo dos ZIPs manualmente
 # - Prefere fazer o processamento depois
 # - Usa ferramentas externas para análise dos CSVs
+
+# NOTA: Durante o processamento normal (step='process' ou 'all'),
+# os nomes das colunas dos CSVs são automaticamente padronizados
+# para corresponder ao esquema esperado do Parquet, sem necessidade
+# de configuração adicional!
 ```
 
 ### Exemplo 7: Subset Especializado

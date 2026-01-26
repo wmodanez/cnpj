@@ -8,7 +8,7 @@ import subprocess
 
 __title__ = "CNPJ Processor"
 __author__ = "Wesley Modanez Freitas"
-__version__ = "4.0.6"
+__version__ = "4.0.9"
 __license__ = "MIT"
 
 def get_version():
