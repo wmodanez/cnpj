@@ -61,6 +61,7 @@ success, folder = processor.run(
 
 - Pipeline paralelo: download e processamento simultâneos
 - Até **70% mais rápido** que processamento sequencial
+- **Padronização automática de colunas**: CSVs renomeados conforme padrão esperado
 - Suporte a múltiplos tipos: empresas, estabelecimentos, sócios, simples
 - Exportação para Parquet com compressão eficiente
 
@@ -127,6 +128,7 @@ processor.run(
 | `tipos` | list | Tipos a processar: ['empresas', 'estabelecimentos', 'simples', 'socios'] |
 | `remote_folder` | str | Pasta remota (formato AAAA-MM) |
 | `output_subfolder` | str | Subpasta de saída |
+| `source_zip_folder` | str | Pasta de origem dos ZIPs (para extract/process) |
 | `force_download` | bool | Forçar re-download |
 | `keep_artifacts` | bool | Manter ZIPs e arquivos temporários (padrão: False) |
 | `create_database` | bool | Criar banco DuckDB (padrão: False) |
@@ -305,6 +307,9 @@ cnpj-processor --step download --remote-folder 2026-01
 # Apenas descompactar ZIPs (sem processar)
 cnpj-processor --step extract --source-zip-folder dados-abertos-zip/2026-01
 
+# Processar dados já descompactados
+cnpj-processor --step process --source-zip-folder dados-abertos-zip/2026-01 --output-subfolder processados
+
 # Processar apenas estabelecimentos
 cnpj-processor --tipos estabelecimentos
 
@@ -335,6 +340,10 @@ Interface otimizada com atalhos intuitivos:
 # Equivalentes (forma completa vs. atalho)
 cnpj-processor --tipos empresas --step download --remote-folder 2026-01
 cnpj-processor -t empresas -s download -r 2026-01
+
+# Descompactar e processar com atalhos
+cnpj-processor --step extract --source-zip-folder dados-abertos-zip/2026-01
+cnpj-processor -s extract -z dados-abertos-zip/2026-01
 
 # Criar banco com economia de espaço
 cnpj-processor --create-database --cleanup-after-db --quiet
