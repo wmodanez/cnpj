@@ -313,6 +313,12 @@ tar -tzf dist/cnpj_processor-3.6.0.tar.gz
 # Limpar builds antigos
 rm -rf build/ dist/ *.egg-info
 
+# Limpar cache do pip
+pip cache purge
+
+# Desinstalar pacote local
+pip uninstall cnpj-processor -y
+
 # Fazer rebuild completo
 python -m build
 
@@ -320,7 +326,27 @@ python -m build
 twine check dist/*
 ```
 
----
+### Reinstalar em Modo Desenvolvimento (Com Limpeza Completa)
+
+```bash
+# Quando o cache causa problemas com importações antigas
+cd /caminho/para/cnpj
+
+# 1. Desinstalar versão anterior
+pip uninstall cnpj-processor -y
+
+# 2. Limpar cache do pip completamente
+pip cache purge
+
+# 3. Reinstalar em modo desenvolvimento (editable)
+python -m pip install -e .
+
+# 4. Verificar instalação
+pip show cnpj-processor
+
+# 5. Testar import
+python -c "from cnpj_processor import CNPJProcessor; print('OK')"
+```
 
 ## 📋 Checklist de Publicação
 
@@ -369,9 +395,13 @@ Verifique se instalou do índice correto:
 # Ver onde o pacote foi instalado
 pip show cnpj-processor
 
-# Reinstalar forçando
-pip uninstall cnpj-processor
-pip install cnpj-processor --no-cache-dir
+# Reinstalar forçando com limpeza completa
+pip uninstall cnpj-processor -y
+pip cache purge
+pip install -e .
+
+# Testar import
+python -c "from cnpj_processor import CNPJProcessor; print('OK')"
 ```
 
 ### CLI não é reconhecido
