@@ -2,8 +2,14 @@
 Módulo de utilitários para o projeto.
 """
 from .folders import check_basic_folders
-from .files import file_delete, check_disk_space, estimate_zip_extracted_size, delete_zip_after_extraction
-from .network import check_internet_connection
+from .files import (
+    file_delete, 
+    check_disk_space, 
+    estimate_zip_extracted_size, 
+    delete_zip_after_extraction,
+    extract_zip_files
+)
+from .network import check_internet_connection, ensure_files_downloaded
 from .cache import DownloadCache
 from .cli import clear_cache, cache_info 
 from .parallel import (
@@ -20,6 +26,9 @@ __all__ = [
     'check_disk_space',
     'estimate_zip_extracted_size',
     'delete_zip_after_extraction',
+    'extract_zip_files',
+    'ensure_files_downloaded',
+    'check_internet_connection',
     'process_csv_files_parallel',
     'process_csv_to_df',
     'verify_csv_integrity',

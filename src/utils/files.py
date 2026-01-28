@@ -1,10 +1,21 @@
 """
-Funções relacionadas à manipulação de arquivos.
+Funções relacionadas à manipulação de arquivos locais.
+
+Responsabilidades deste módulo:
+- Verificação de espaço em disco
+- Extração paralela de arquivos ZIP (file_extractor)
+- Remoção de arquivos (file_delete)
+- Estimativa de tamanho de arquivos compactados
+- Gerenciamento de ciclo de vida de ZIPs (delete_zip_after_extraction)
+- Wrapper de alto nível para extração (extract_zip_files)
+
+Para download de arquivos remotos, use src.utils.network.ensure_files_downloaded()
 """
 import glob
 import logging
 import os
 import shutil
+import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple
@@ -169,4 +180,55 @@ def delete_zip_after_extraction(zip_path: str, extracted_dir: str, verify_extrac
         return False
     except Exception as e:
         logger.error(f"Erro ao deletar ZIP {os.path.basename(zip_path)}: {str(e)}")
+        return False
+
+
+def extract_zip_files(source_zip_path: str, unzip_path: str, delete_after: bool = False) -> bool:
+    """
+    Extrai arquivos ZIP de uma pasta para outra.
+    Função wrapper de alto nível para pipeline de processamento.
+    Reutiliza file_extractor() para extração paralela.
+    
+    Args:
+        source_zip_path: Pasta contendo arquivos ZIP
+        unzip_path: Pasta de destino para extração
+        delete_after: Se True, remove ZIPs após extração bem-sucedida
+        
+    Returns:
+        bool: True se extração foi bem-sucedida
+    """
+    try:
+        # Verificar se há ZIPs para extrair
+        if not os.path.exists(source_zip_path):
+            logger.error(f"Pasta de origem não existe: {source_zip_path}")
+            return False
+            
+        zip_files = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')]
+        if not zip_files:
+            logger.warning("Nenhum arquivo ZIP encontrado para extrair.")
+            return True
+        
+        logger.info(f"🔄 Extraindo {len(zip_files)} arquivos ZIP...")
+        os.makedirs(unzip_path, exist_ok=True)
+        
+        # Usar função existente de extração paralela
+        extract_start = time.time()
+        file_extractor(source_zip_path, unzip_path, '*.zip')
+        extract_time = time.time() - extract_start
+        
+        logger.info(f"✅ Extração concluída em {extract_time:.2f}s")
+        
+        # Deletar ZIPs se solicitado usando função existente
+        if delete_after:
+            logger.info("🗑️ Removendo arquivos ZIP após extração...")
+            for zip_file in zip_files:
+                try:
+                    zip_path = os.path.join(source_zip_path, zip_file)
+                    delete_zip_after_extraction(zip_path, unzip_path, verify_extraction=True)
+                except Exception as e:
+                    logger.warning(f"⚠️ Erro ao remover {zip_file}: {e}")
+        
+        return True
+    except Exception as e:
+        logger.error(f"❌ Erro durante extração: {e}")
         return False

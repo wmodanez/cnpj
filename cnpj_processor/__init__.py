@@ -52,8 +52,27 @@ from src.async_downloader import (
     download_multiple_files,
     get_latest_month_zip_urls,
     get_remote_folders,
-    get_latest_remote_folder
+    get_latest_remote_folder,
+    _filter_urls_by_type,
+    download_only_files,
+    get_network_test_results
 )
+
+# Importar funções e utilitários adicionais
+from src.utils import check_basic_folders
+from src.utils.time_utils import format_elapsed_time
+from src.utils.statistics import global_stats
+from src.utils.global_circuit_breaker import (
+    circuit_breaker,
+    FailureType,
+    CriticalityLevel,
+    should_continue_processing,
+    report_critical_failure,
+    report_fatal_failure,
+    register_stop_callback
+)
+from src.utils.env_setup import load_env_with_defaults
+from src.process.base.factory import ProcessorFactory
 
 # Classe principal wrapper
 class CNPJProcessor:
@@ -284,6 +303,7 @@ __all__ = [
     'SimplesProcessor',
     'SocioProcessor',
     'PainelProcessor',
+    'ProcessorFactory',
     
     # Entidades
     'Empresa',
@@ -292,12 +312,30 @@ __all__ = [
     'Socio',
     'Painel',
     
-    # Funções de download
+    # Funções de download e rede
     'download_multiple_files',
     'get_latest_month_zip_urls',
     'get_remote_folders',
     'get_latest_remote_folder',
+    '_filter_urls_by_type',
+    'download_only_files',
+    'get_network_test_results',
     
     # Database
     'create_duckdb_file',
+    
+    # Utilitários
+    'check_basic_folders',
+    'format_elapsed_time',
+    'global_stats',
+    'load_env_with_defaults',
+    
+    # Circuit breaker
+    'circuit_breaker',
+    'FailureType',
+    'CriticalityLevel',
+    'should_continue_processing',
+    'report_critical_failure',
+    'report_fatal_failure',
+    'register_stop_callback',
 ]

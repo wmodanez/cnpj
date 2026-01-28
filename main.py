@@ -1,8 +1,18 @@
 """
 EXEMPLOS DE USO DO PROCESSADOR CNPJ:
 
+=== ARQUITETURA DOS STEPS ===
+Cada step é composto pelos anteriores:
+- download: Apenas baixa arquivos
+- extract: download → extração
+- csv: download → extração → gera CSVs normalizados
+- process: download → extração → processamento para parquet
+- database: Cria DuckDB (requer parquets existentes)
+- painel: Processa painel consolidado (requer parquets existentes)
+- all: download → extração → processamento → [opcionais: painel, database]
+
 === EXECUÇÃO BÁSICA ===
-1. Processamento completo padrão (baixa e processa todos os tipos da pasta mais recente):
+1. Processamento completo padrão:
    python main.py
 
 2. Processar apenas tipos específicos:
@@ -11,133 +21,61 @@ EXEMPLOS DE USO DO PROCESSADOR CNPJ:
 3. Usar pasta remota específica:
    python main.py --remote-folder 2024-05
 
-4. Processar com economia de espaço (remove ZIPs após extração):
-   python main.py --delete-zips-after-extract
-
 === PROCESSAMENTO POR ETAPAS ===
-5. Apenas download:
+4. Apenas download:
    python main.py --step download
 
-6. Apenas descompactação (sem processar):
-   python main.py --step extract --source-zip-folder dados-abertos-zip/2024-05
+5. Download + extração:
+   python main.py --step extract
 
-7. Apenas processamento (usando ZIPs já baixados/descompactados):
-   python main.py --step process --source-zip-folder dados-abertos-zip/2024-05 --output-subfolder processados
+6. Download + extração + geração de CSVs normalizados:
+   python main.py --step csv
+   python main.py --step csv --output-csv-folder meus_csvs
 
-8. Normalizar CSVs com padronização de campos (sem gerar parquet):
-   python main.py --step normalize
+7. Download + extração + processamento (gera parquets):
+   python main.py --step process --output-subfolder processados
 
-9. Normalizar CSVs em pasta específica:
-   python main.py --step normalize --output-csv-folder meus_csvs_normalizados
+8. Criar banco DuckDB de parquets existentes:
+   python main.py --step database --output-subfolder processados
 
-10. Normalizar e remover ZIPs após:
-   python main.py --step normalize --delete-zips-after-extract
-
-11. Apenas criação do banco DuckDB:
-    python main.py --step database --output-subfolder processados_2024_05
-
-12. Apenas processamento do painel:
-    python main.py --step painel --remote-folder 2024-05
+9. Processar painel de dados existentes:
+   python main.py --step painel --remote-folder 2024-05
 
 === CONTROLE DE PASTAS ===
-13. Salvar em subpasta específica:
+10. Salvar em subpasta específica:
     python main.py --output-subfolder meu_processamento
 
-13. Salvar na pasta raiz do parquet:
-    python main.py --output-subfolder .
-
-14. Processar de pasta ZIP específica:
-    python main.py --step process --source-zip-folder "D:/MeusDownloads/CNPJ_ZIPs/2024-01"
-
-15. Exibir a pasta remota mais recente disponível:
+11. Exibir pasta remota mais recente:
     python main.py --show-latest-folder
-    python main.py --latest
 
-=== PROCESSAMENTO DO PAINEL CONSOLIDADO ===
-16. Painel completo sem filtros:
-    python main.py --processar-painel
-
-15. Painel filtrado por UF:
-    python main.py --processar-painel --painel-uf SP
-
-16. Painel filtrado por situação (2=Ativa):
-    python main.py --processar-painel --painel-situacao 2
-
-17. Painel com filtros combinados:
-    python main.py --processar-painel --painel-uf GO --painel-situacao 2
-
-18. Processamento exclusivo do painel (usando dados já processados):
-    python main.py --step painel --remote-folder 2024-05
-
-19. Painel na pasta raiz:
-    python main.py --step painel --remote-folder 2024-05 --output-subfolder .
-
-=== SUBCONJUNTOS E FILTROS ===
-20. Criar subconjunto de empresas privadas:
-    python main.py --tipos empresas --criar-empresa-privada
-
-21. Criar subconjunto por UF (estabelecimentos):
-    python main.py --tipos estabelecimentos --criar-subset-uf SP
+=== PROCESSAMENTO DO PAINEL ===
+12. Painel com filtros:
+    python main.py --processar-painel --painel-uf SP --painel-situacao 2
 
 === ECONOMIA DE ESPAÇO ===
-22. Manter arquivos intermediários (ZIPs e descompactados):
-    python main.py --keep-artifacts
+13. Remover ZIPs após extração:
+    python main.py --delete-zips-after-extract
 
-23. Criar banco DuckDB (opcional):
-    python main.py --create-database
-
-24. Criar banco e remover parquets após:
+14. Criar banco e remover parquets:
     python main.py --create-database --cleanup-after-db
-
-25. Criar banco e manter parquets:
-    python main.py --create-database --keep-parquet-after-db
 
 === CONTROLE DE INTERFACE ===
-26. Modo silencioso:
+15. Modo silencioso:
     python main.py --quiet
 
-27. Forçar download mesmo se arquivo existir:
+16. Forçar re-download:
     python main.py --force-download
 
-28. Processamento em modo verboso:
-    python main.py --verbose-ui
-
-=== PROCESSAMENTO MÚLTIPLO ===
-29. Baixar de todas as pastas disponíveis:
-    python main.py --all-folders --step download
-
-30. Processar múltiplas pastas a partir de uma data:
-    python main.py --all-folders --from-folder 2023-01
-
-30. Processar todas as pastas locais:
-    python main.py --step process --process-all-folders
-
-=== EXEMPLOS AVANÇADOS ===
-31. Pipeline completo com painel e banco:
-    python main.py --processar-painel --painel-uf SP --create-database
-
-32. Processamento com banco e limpeza total:
-    python main.py --create-database --cleanup-after-db
-
 PARÂMETROS PRINCIPAIS:
-- --show-latest-folder, --latest: Exibir a pasta remota mais recente disponível
-- --tipos: Especifica quais dados processar (empresas, estabelecimentos, simples, socios)
-- --step: Define a etapa (download, extract, process, normalize, database, painel, all)
-- --remote-folder: Usa pasta remota específica (formato AAAA-MM)
-- --output-subfolder: Define subpasta de saída para parquets (use "." para pasta raiz)
-- --output-csv-folder: Define pasta de saída para CSVs normalizados (padrão: dados-abertos)
-- --source-zip-folder: Especifica pasta com ZIPs para processamento
-- --normalize-csv: Gerar CSVs normalizados com padronização de campos (step normalize)
-- --processar-painel: Ativa processamento do painel consolidado
-- --painel-uf: Filtra painel por UF
-- --painel-situacao: Filtra painel por situação cadastral
-- --keep-artifacts: Manter ZIPs e descompactados (padrão: remove para economizar espaço)
-- --delete-zips-after-extract: Remove ZIPs após extração (compatível com normalize)
-- --create-database: Criar banco DuckDB após processamento (padrão: não cria)
-- --cleanup-after-db: Remove parquets após criar banco (requer --create-database)
-- --keep-parquet-after-db: Manter parquets após criar banco (requer --create-database)
+- --step: Define etapa (download|extract|csv|process|database|painel|all)
+- --tipos: Tipos a processar (empresas|estabelecimentos|simples|socios)
+- --remote-folder: Pasta remota específica (AAAA-MM)
+- --output-subfolder: Subpasta de saída para parquets
+- --output-csv-folder: Pasta de saída para CSVs normalizados (step csv)
+- --force-download: Forçar re-download
+- --delete-zips-after-extract: Remover ZIPs após extração
+- --create-database: Criar DuckDB após processamento
 - --quiet: Modo silencioso
-- --force-download: Força download mesmo se arquivo existir
 """
 import argparse
 import asyncio
@@ -175,13 +113,13 @@ from rich.logging import RichHandler
 
 # CARREGAR VARIÁVEIS DE AMBIENTE ANTES DAS IMPORTAÇÕES QUE DEPENDEM DELAS
 # Garantir que o .env existe com valores padrão
-from src.utils.env_setup import load_env_with_defaults
+from cnpj_processor import load_env_with_defaults
 load_env_with_defaults()
 
 # Importar versão centralizada
-from src.__version__ import get_full_description, get_version
+from cnpj_processor import get_full_description, get_version
 
-from src.async_downloader import (
+from cnpj_processor import (
     download_multiple_files, 
     get_latest_month_zip_urls, 
     get_remote_folders, 
@@ -190,23 +128,28 @@ from src.async_downloader import (
     download_only_files,
     get_network_test_results
 )
-from src.config import config
-from src.database import create_duckdb_file
-from src.process.base.factory import ProcessorFactory
-from src.process.processors.empresa_processor import EmpresaProcessor
-from src.process.processors.estabelecimento_processor import EstabelecimentoProcessor
-from src.process.processors.simples_processor import SimplesProcessor
-from src.process.processors.socio_processor import SocioProcessor
-from src.process.processors.painel_processor import PainelProcessor
-from src.utils import check_basic_folders
-from src.utils.time_utils import format_elapsed_time
-from src.utils.statistics import global_stats
+from cnpj_processor import config
+from cnpj_processor import create_duckdb_file
+from cnpj_processor import ProcessorFactory
+from cnpj_processor import (
+    EmpresaProcessor,
+    EstabelecimentoProcessor,
+    SimplesProcessor,
+    SocioProcessor,
+    PainelProcessor
+)
+from cnpj_processor import check_basic_folders
+from cnpj_processor import format_elapsed_time
+from cnpj_processor import global_stats
+
+# Importar funções utilitárias refatoradas
+from src.utils import ensure_files_downloaded, extract_zip_files
 
 # Configurar logger global
 logger = logging.getLogger(__name__)
 
 # Imports do circuit breaker
-from src.utils.global_circuit_breaker import (
+from cnpj_processor import (
     circuit_breaker,
     FailureType,
     CriticalityLevel,
@@ -479,7 +422,7 @@ async def async_main():
     
     parser.add_argument('--tipos', '-t', nargs='+', choices=['empresas', 'estabelecimentos', 'simples', 'socios'],
                          default=[], help='Tipos de dados a serem processados. Se não especificado, processa todos (relevante para steps \'process\' e \'all\').')
-    parser.add_argument('--step', '-s', choices=['download', 'extract', 'process', 'normalize', 'database', 'painel', 'all'], default='all',
+    parser.add_argument('--step', '-s', choices=['download', 'extract', 'csv', 'process', 'database', 'painel', 'all'], default='all',
                          help='Etapa a ser executada. Padrão: all')
     parser.add_argument('--quiet', '-q', action='store_true',
                          help='Modo silencioso - reduz drasticamente as saídas no console')
@@ -502,7 +445,7 @@ async def async_main():
     parser.add_argument('--output-subfolder', '-o', type=str,
                          help='Nome da subpasta onde salvar os arquivos parquet. Use "." para pasta raiz')
     parser.add_argument('--output-csv-folder', type=str,
-                         help='Pasta onde salvar CSVs normalizados (padrão: dados-abertos). Para step normalize')
+                         help='Pasta onde salvar CSVs normalizados (padrão: dados-abertos). Para step csv')
     parser.add_argument('--source-zip-folder', '-z', type=str,
                          help='Pasta de origem dos arquivos ZIP (para step \'process\')')
     parser.add_argument('--process-all-folders', '-p', action='store_true',
@@ -736,265 +679,68 @@ async def async_main():
             
             return False, ""
 
-     # 🆕 CORREÇÃO: Adicionar bloco para --step download
+     # Step 1: Download apenas
     elif args.step == 'download':
-        print_header("Etapa 1: Apenas Download de Arquivos")
-
-        # Determinar pasta remota a usar
-        if args.remote_folder:
-            remote_folder_download = args.remote_folder
-            logger.info(f"Usando pasta remota especificada: {remote_folder_download}")
-        else:
-            # Obter pasta mais recente
-            base_url = os.getenv('BASE_URL')
-            if not base_url:
-                logger.error("BASE_URL não definida no arquivo .env")
-                return False, ""
-            remote_folder_download = await get_latest_remote_folder(base_url)
-            if not remote_folder_download:
-                logger.error("Não foi possível determinar a pasta remota mais recente. Use --remote-folder.")
-                return False, ""
-            logger.info(f"Pasta remota mais recente: {remote_folder_download}")
-
-        # Definir caminho de destino dos ZIPs
-        source_zip_path = os.path.join(PATH_ZIP, remote_folder_download)
-        os.makedirs(source_zip_path, exist_ok=True)
-        logger.info(f"Arquivos ZIP serão salvos em: {source_zip_path}")
-
-        # Obter URLs dos arquivos da pasta remota
-        from src.async_downloader import get_latest_month_zip_urls, _filter_urls_by_type
+        print_header("Etapa 1: Download de Arquivos")
         
-        base_url = os.getenv('BASE_URL')
-        if not base_url:
-            logger.error("BASE_URL não definida no arquivo .env")
+        success, source_zip_path, zip_files = await ensure_files_downloaded(args, PATH_ZIP)
+        
+        if not success:
             return False, ""
-            
-        zip_urls, _ = get_latest_month_zip_urls(base_url, remote_folder)
-            
-        # Filtrar URLs por tipos desejados, se especificado
-        if args.tipos:
-            zip_urls, ignored = _filter_urls_by_type(zip_urls, tuple(args.tipos))
-            logger.info(f"Filtrados {ignored} URLs. Restaram {len(zip_urls)} URLs para download.")
-
-        # Executar apenas o download
-        download_start_time = time.time()
         
-        downloaded_files, failed_downloads = await download_only_files(
-            urls=zip_urls,
-            path_zip=source_zip_path,
-            force_download=args.force_download,
-            show_progress_bar=not args.quiet,
-            show_pending_files=args.verbose_ui
-        )
+        if not zip_files:
+            logger.warning("Nenhum arquivo foi baixado.")
+            return True, ""
         
-        download_time = time.time() - download_start_time
-        
-        if not failed_downloads:
-            print_success(f"Download de {len(downloaded_files)} arquivos concluído com sucesso em {format_elapsed_time(download_time)}")
-            overall_success = True
-        else:
-            print_error(f"Download concluído com {len(failed_downloads)} falhas em {format_elapsed_time(download_time)}")
-            overall_success = False
+        logger.info(f"✅ Download concluído: {len(zip_files)} arquivo(s) disponível(is)")
+        return True, source_zip_path
 
-            return False, ""
-
-    # 🆕 Adicionar bloco para --step extract
+    # Step 2: Download + Extração
     elif args.step == 'extract':
-        print_header("Etapa 2: Apenas Descompactação de Arquivos ZIP")
-
-        if not args.source_zip_folder:
-            logger.error("Para a etapa 'extract', o argumento --source-zip-folder é obrigatório.")
-            return False, ""
-
-        source_zip_path = args.source_zip_folder
+        print_header("Etapa 2: Download + Extração")
         
-        # Se o caminho for relativo, resolver em relação ao PATH_ZIP
-        if not os.path.isabs(source_zip_path):
-            source_zip_path = os.path.join(PATH_ZIP, source_zip_path)
+        # 1. Garantir que arquivos foram baixados
+        print_section("2.1: Verificando/baixando arquivos")
+        success, source_zip_path, zip_files = await ensure_files_downloaded(args, PATH_ZIP)
         
-        # Validar que o caminho existe
-        if not os.path.exists(source_zip_path):
-            logger.error(f"Pasta de origem dos ZIPs não encontrada: {source_zip_path}")
+        if not success or not zip_files:
+            logger.error("Falha ao obter arquivos para extração.")
             return False, ""
-
-        logger.info(f"Descompactando arquivos de: {source_zip_path}")
-        logger.info(f"Extraindo para: {PATH_UNZIP}")
-
-        # Obter lista de arquivos ZIP para descompactar
-        try:
-            zip_files = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')]
-            if not zip_files:
-                logger.warning("Nenhum arquivo ZIP encontrado para descompactar.")
-                return True, ""
-        except FileNotFoundError:
-            logger.error(f"Pasta de origem dos ZIPs não encontrada: {source_zip_path}")
-            return False, ""
-
-        # Importar função de descompactação
-        from src.utils.files import file_extractor
-
-        # Executar descompactação
-        extract_start_time = time.time()
         
-        try:
-            logger.info(f"🔄 Iniciando descompactação de {len(zip_files)} arquivos ZIP")
-            
-            # Criar diretório de destino se não existir
-            os.makedirs(PATH_UNZIP, exist_ok=True)
-            
-            # Descompactar todos os arquivos ZIP
-            file_extractor(source_zip_path, PATH_UNZIP, '*.zip')
-            
-            extract_time = time.time() - extract_start_time
-            
-            print_success(f"Descompactação concluída em {format_elapsed_time(extract_time)}")
-            logger.info(f"✅ {len(zip_files)} arquivos ZIP descompactados com sucesso")
-            logger.info(f"📁 Arquivos extraídos em: {PATH_UNZIP}")
-            
-            total_time = time.time() - start_time
-            logger.info("=" * 50)
-            logger.info(f"TEMPO TOTAL DE EXECUÇÃO: {format_elapsed_time(total_time)}")
-            logger.info("STATUS FINAL: SUCESSO")
-            logger.info("=" * 50)
-            
-            # Finalizar estatísticas
-            global_stats.end_session()
-            global_stats.print_detailed_report()
-            
-            return True, "extract"
-            
-        except Exception as e:
-            extract_time = time.time() - extract_start_time
-            logger.error(f"❌ Erro durante descompactação: {e}")
-            logger.info("=" * 50)
-            logger.info(f"TEMPO TOTAL DE EXECUÇÃO: {format_elapsed_time(extract_time)}")
-            logger.info("STATUS FINAL: FALHA")
-            logger.info("=" * 50)
-            
-            return False, ""
-
-    # 🆕 Adicionar bloco para --step normalize
-    elif args.step == 'normalize':
-        print_header("Etapa 2.5: Normalização de CSVs com Padronização")
-
-        # Usar pasta padrão de ZIPs
-        source_zip_path = PATH_ZIP
+        # 2. Extrair arquivos
+        print_section("2.2: Extraindo arquivos")
+        extract_success = extract_zip_files(source_zip_path, PATH_UNZIP, args.delete_zips_after_extract)
         
-        # Definir pasta de saída para CSVs normalizados (padrão: dados-abertos)
-        # Suporta tanto --output-csv-folder quanto --output-subfolder
+        if not extract_success:
+            return False, ""
+        
+        logger.info("✅ Extração concluída com sucesso")
+        return True, "extract"
+
+    # Step 2.5: Download + Extração + Geração de CSVs Normalizados
+    elif args.step == 'csv':
+        print_header("Etapa 2.5: Geração de CSVs Normalizados")
+        
+        # 1. Garantir que arquivos foram baixados
+        print_section("2.5.1: Verificando/baixando arquivos")
+        success, source_zip_path, zip_files = await ensure_files_downloaded(args, PATH_ZIP)
+        
+        if not success or not zip_files:
+            logger.error("Falha ao obter arquivos para geração de CSVs.")
+            return False, ""
+        
+        # 2. Definir pasta de saída
         output_folder = args.output_csv_folder or args.output_subfolder
-        
         if output_folder:
-            # Se for caminho absoluto, usar como está
-            if os.path.isabs(output_folder):
-                output_base_path = output_folder
-            else:
-                # Se for relativo, resolver em relação ao CWD
-                output_base_path = os.path.abspath(output_folder)
+            output_base_path = output_folder if os.path.isabs(output_folder) else os.path.abspath(output_folder)
         else:
-            # Padrão: dados-abertos
             output_base_path = os.path.abspath(os.path.join(project_root, 'dados-abertos'))
         
         os.makedirs(output_base_path, exist_ok=True)
-
-        logger.info(f"Normalizando arquivos de: {source_zip_path}")
         logger.info(f"Salvando CSVs normalizados em: {output_base_path}")
-
-        # Obter lista de arquivos ZIP para processar
-        try:
-            os.makedirs(source_zip_path, exist_ok=True)
-            zip_files = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')]
-            
-            # Se não houver arquivos, fazer download automaticamente
-            if not zip_files:
-                logger.info("Nenhum arquivo ZIP encontrado. Iniciando download automático...")
-                print_header("Etapa 1: Download de Arquivos ZIP")
-                
-                # Filtrar por tipos, se especificado
-                tipos_para_download = args.tipos if args.tipos else ['empresas', 'estabelecimentos', 'simples', 'socios']
-                
-                # Chamar download
-                from src.async_downloader import download_only_files, get_latest_month_zip_urls, _filter_urls_by_type
-                
-                download_start_time = time.time()
-                
-                try:
-                    logger.info(f"🔄 Iniciando download de {len(tipos_para_download)} tipos de dados")
-                    
-                    # Obter URLs dos arquivos da pasta remota mais recente
-                    base_url = os.getenv('BASE_URL')
-                    if not base_url:
-                        logger.error("BASE_URL não definida no arquivo .env")
-                        return False, ""
-                    
-                    logger.debug(f"BASE_URL: {base_url}")
-                    
-                    # Obter pasta remota mais recente
-                    from src.async_downloader import get_latest_remote_folder
-                    remote_folder = await get_latest_remote_folder(base_url)
-                    if not remote_folder:
-                        logger.error("Não foi possível determinar a pasta remota mais recente.")
-                        return False, ""
-                    
-                    logger.info(f"Pasta remota detectada: {remote_folder}")
-                    
-                    # Obter URLs
-                    logger.info("Obtendo lista de URLs...")
-                    zip_urls, total_urls = get_latest_month_zip_urls(base_url, remote_folder)
-                    logger.info(f"Total de URLs encontradas: {len(zip_urls)} de {total_urls}")
-                    
-                    # Filtrar por tipos
-                    if tipos_para_download:
-                        logger.info(f"Filtrando por tipos: {tipos_para_download}")
-                        zip_urls_antes = len(zip_urls)
-                        zip_urls, ignored = _filter_urls_by_type(zip_urls, tuple(tipos_para_download))
-                        logger.info(f"Após filtro: {len(zip_urls)} URLs de {zip_urls_antes} (ignorados: {ignored})")
-                        
-                        if not zip_urls:
-                            logger.warning("Nenhuma URL correspondente aos tipos especificados.")
-                            return True, ""
-                    
-                    logger.info(f"URLs a baixar: {len(zip_urls)}")
-                    for url in zip_urls[:5]:  # Log das primeiras 5 URLs
-                        logger.info(f"  - {url}")
-                    if len(zip_urls) > 5:
-                        logger.info(f"  ... e mais {len(zip_urls) - 5} URLs")
-                    
-                    # Fazer download dos tipos especificados
-                    logger.info(f"Iniciando download para: {source_zip_path}")
-                    downloaded_files, failed_downloads = await download_only_files(
-                        urls=zip_urls,
-                        path_zip=source_zip_path,
-                        force_download=False,
-                        show_progress_bar=True,
-                        show_pending_files=False
-                    )
-                    
-                    download_time = time.time() - download_start_time
-                    logger.info(f"✅ Download concluído: {len(downloaded_files)} arquivo(s) baixado(s) em {download_time:.2f}s")
-                    
-                    if failed_downloads:
-                        logger.warning(f"⚠️  {len(failed_downloads)} falhas durante o download")
-                        for failed_url, error in failed_downloads[:5]:
-                            logger.warning(f"  Falha em {failed_url}: {error}")
-                    
-                    # Atualizar lista de ZIPs após download
-                    zip_files = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')]
-                    logger.info(f"ZIPs disponíveis após download: {len(zip_files)}")
-                    
-                    if not zip_files:
-                        logger.warning("Nenhum arquivo ZIP foi baixado.")
-                        return True, ""
-                        
-                except Exception as e:
-                    logger.error(f"Erro ao baixar arquivos: {e}")
-                    import traceback
-                    logger.error(traceback.format_exc())
-                    return False, ""
-                
-        except FileNotFoundError:
-            logger.error(f"Pasta de origem dos ZIPs não encontrada: {source_zip_path}")
-            return False, ""
+        
+        # 3. Executar geração de CSVs normalizados
+        print_section("2.5.2: Gerando CSVs normalizados")
 
         # Filtrar por tipos, se especificado
         tipos_a_processar = args.tipos if args.tipos else ['empresas', 'estabelecimentos', 'simples', 'socios']
@@ -1010,7 +756,7 @@ async def async_main():
                 zips_por_tipo[tipo] = [f for f in zip_files if f.startswith(prefixo)]
 
         if not any(zips_por_tipo.values()):
-            logger.warning("Nenhum arquivo ZIP correspondente aos tipos especificados foi encontrado para normalizar.")
+            logger.warning("Nenhum arquivo ZIP correspondente aos tipos especificados foi encontrado para gerar CSVs.")
             return True, ""
 
         # Importar funções necessárias
@@ -1023,7 +769,7 @@ async def async_main():
         total_files_processed = 0
         
         try:
-            logger.info(f"🔄 Iniciando normalização de {sum(len(zips) for zips in zips_por_tipo.values())} arquivos ZIP")
+            logger.info(f"🔄 Iniciando geração de CSVs de {sum(len(zips) for zips in zips_por_tipo.values())} arquivos ZIP")
             
             # Processar cada tipo
             for tipo, zip_files_tipo in zips_por_tipo.items():
@@ -1098,8 +844,8 @@ async def async_main():
             
             normalize_time = time.time() - normalize_start_time
             
-            print_success(f"Normalização concluída em {format_elapsed_time(normalize_time)}")
-            logger.info(f"✅ {total_files_processed} arquivos CSV normalizados com sucesso")
+            print_success(f"Geração de CSVs concluída em {format_elapsed_time(normalize_time)}")
+            logger.info(f"✅ {total_files_processed} arquivos CSV normalizados gerados com sucesso")
             logger.info(f"📁 CSVs normalizados em: {output_base_path}")
             
             total_time = time.time() - start_time
@@ -1112,11 +858,11 @@ async def async_main():
             global_stats.end_session()
             global_stats.print_detailed_report()
             
-            return True, "normalize"
+            return True, "csv"
             
         except Exception as e:
             normalize_time = time.time() - normalize_start_time
-            logger.error(f"❌ Erro durante normalização: {e}")
+            logger.error(f"❌ Erro durante geração de CSVs: {e}")
             logger.info("=" * 50)
             logger.info(f"TEMPO TOTAL DE EXECUÇÃO: {format_elapsed_time(normalize_time)}")
             logger.info("STATUS FINAL: FALHA")
@@ -1124,36 +870,38 @@ async def async_main():
             
             return False, ""
 
-    # 🆕 CORREÇÃO: Adicionar bloco para --step process
+    # Step 3: Download + Extração + Processamento
     elif args.step == 'process':
-        print_header("Etapa 2: Apenas Processamento de Arquivos")
+        print_header("Etapa 3: Download + Extração + Processamento")
 
-        if not args.source_zip_folder:
-            logger.error("Para a etapa 'process', o argumento --source-zip-folder é obrigatório.")
+        # Validar parâmetros obrigatórios
+        if not args.output_subfolder:
+            logger.error("Para 'process', --output-subfolder é obrigatório.")
             return False, ""
         
-        if not args.output_subfolder:
-            logger.error("Para a etapa 'process', o argumento --output-subfolder é obrigatório.")
+        # 1. Garantir que arquivos foram baixados
+        print_section("3.1: Verificando/baixando arquivos")
+        success, source_zip_path, zip_files = await ensure_files_downloaded(args, PATH_ZIP)
+        
+        if not success or not zip_files:
+            logger.error("Falha ao obter arquivos para processamento.")
             return False, ""
-
-        source_zip_path = args.source_zip_folder
+        
+        # 2. Extrair arquivos
+        print_section("3.2: Extraindo arquivos")
+        extract_success = extract_zip_files(source_zip_path, PATH_UNZIP, args.delete_zips_after_extract)
+        
+        if not extract_success:
+            return False, ""
+        
+        # 3. Processar arquivos
+        print_section("3.3: Processando para parquet")
         output_parquet_path = os.path.join(PATH_PARQUET, args.output_subfolder)
         os.makedirs(output_parquet_path, exist_ok=True)
-
-        logger.info(f"Processando arquivos de: {source_zip_path}")
-        logger.info(f"Salvando Parquets em: {output_parquet_path}")
-
-        # Obter lista de arquivos ZIP para processar
-        try:
-            zip_files = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')]
-        except FileNotFoundError:
-            logger.error(f"Pasta de origem dos ZIPs não encontrada: {source_zip_path}")
-            return False, ""
-
-        # Filtrar por tipos, se especificado
+        
         tipos_a_processar = args.tipos if args.tipos else ['empresas', 'estabelecimentos', 'simples', 'socios']
         
-        # Mapear tipo para prefixo de arquivo
+        # Preparar URLs para pipeline
         tipo_map = {'empresas': 'Empre', 'estabelecimentos': 'Estabele', 'simples': 'Simples', 'socios': 'Socio'}
         urls_para_processar = []
         for tipo in tipos_a_processar:
@@ -1162,27 +910,26 @@ async def async_main():
                 urls_para_processar.extend([os.path.join(source_zip_path, f) for f in zip_files if f.startswith(prefixo)])
 
         if not urls_para_processar:
-            logger.warning("Nenhum arquivo ZIP correspondente aos tipos especificados foi encontrado para processar.")
+            logger.warning("Nenhum arquivo correspondente aos tipos especificados.")
             return True, args.output_subfolder
 
-        # Executar pipeline de processamento
         process_start_time = time.time()
         process_results = await optimized_download_and_process_pipeline(
-            urls=urls_para_processar, # A função usa as URLs para obter os nomes dos arquivos
+            urls=urls_para_processar,
             source_zip_path=source_zip_path,
             unzip_path=PATH_UNZIP,
             output_parquet_path=output_parquet_path,
             tipos_a_processar=tipos_a_processar,
-            delete_zips_after_extract=args.delete_zips_after_extract,
-            force_download=True # Força o processamento, já que o download é pulado
+            delete_zips_after_extract=False,  # Já foi extraído
+            force_download=False  # Já foi baixado
         )
         process_time = time.time() - process_start_time
 
         if process_results.get('all_ok', False):
-            print_success(f"Processamento concluído com sucesso em {format_elapsed_time(process_time)}")
+            print_success(f"Processamento concluído em {format_elapsed_time(process_time)}")
+            return True, args.output_subfolder
         else:
-            print_error("Falha durante o processamento. Verifique os logs.")
-            overall_success = False
+            print_error("Falha durante processamento.")
             return False, ""
 
     # 🆕 CORREÇÃO: Adicionar bloco para --step database

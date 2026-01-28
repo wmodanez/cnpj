@@ -1,5 +1,14 @@
 """
-Utilitários para verificação e monitoramento de conectividade de rede.
+Utilitários para verificação e monitoramento de conectividade de rede e download de arquivos.
+
+Responsabilidades deste módulo:
+- Verificação de conectividade de internet (check_internet_connection)
+- Teste de qualidade e velocidade de conexão
+- Recomendações adaptativas de rede
+- Gerenciamento de download de arquivos (ensure_files_downloaded)
+
+Para extração de arquivos, use src.utils.files.extract_zip_files()
+Para processamento de CSVs, use src.utils.parallel.process_csv_files_parallel()
 """
 
 import asyncio
@@ -283,3 +292,104 @@ async def adaptive_network_test() -> Dict[str, any]:
                 f"({speed_results['download_speed_mbps']:.1f} Mbps)")
     
     return results
+
+
+async def ensure_files_downloaded(
+    args,
+    path_zip: str,
+    remote_folder: str = None
+) -> tuple:
+    """
+    Garante que os arquivos necessários foram baixados.
+    Função utilitária para pipeline de processamento.
+    
+    Args:
+        args: Argumentos do parser (com tipos, remote_folder, force_download, quiet, verbose_ui)
+        path_zip: Caminho base para salvar ZIPs
+        remote_folder: Pasta remota específica (opcional)
+        
+    Returns:
+        tuple: (sucesso: bool, pasta_destino: str, lista_de_zips: list)
+    """
+    import os
+    from ..async_downloader import (
+        get_latest_remote_folder,
+        get_latest_month_zip_urls,
+        _filter_urls_by_type,
+        download_only_files
+    )
+    
+    # Determinar pasta remota
+    if remote_folder:
+        remote_folder_use = remote_folder
+        logger.info(f"Usando pasta remota especificada: {remote_folder_use}")
+    elif hasattr(args, 'remote_folder') and args.remote_folder:
+        remote_folder_use = args.remote_folder
+        logger.info(f"Usando pasta remota especificada: {remote_folder_use}")
+    else:
+        base_url = os.getenv('BASE_URL')
+        if not base_url:
+            logger.error("BASE_URL não definida no arquivo .env")
+            return False, "", []
+        remote_folder_use = await get_latest_remote_folder(base_url)
+        if not remote_folder_use:
+            logger.error("Não foi possível determinar a pasta remota mais recente.")
+            return False, "", []
+        logger.info(f"Pasta remota mais recente: {remote_folder_use}")
+    
+    # Definir caminho de destino
+    source_zip_path = os.path.join(path_zip, remote_folder_use)
+    os.makedirs(source_zip_path, exist_ok=True)
+    
+    # Verificar arquivos locais
+    zip_files = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')] if os.path.exists(source_zip_path) else []
+    
+    # Obter URLs remotas
+    base_url = os.getenv('BASE_URL')
+    if not base_url:
+        logger.error("BASE_URL não definida no arquivo .env")
+        return False, "", []
+    
+    remote_zip_urls, _ = get_latest_month_zip_urls(base_url, remote_folder_use)
+    
+    # Filtrar por tipos se especificado
+    if hasattr(args, 'tipos') and args.tipos:
+        remote_zip_urls_filtered, _ = _filter_urls_by_type(remote_zip_urls, tuple(args.tipos))
+    else:
+        remote_zip_urls_filtered = remote_zip_urls
+    
+    logger.info(f"Arquivos remotos: {len(remote_zip_urls_filtered)}, Arquivos locais: {len(zip_files)}")
+    
+    # Decidir se precisa fazer download
+    force_download = hasattr(args, 'force_download') and args.force_download
+    should_download = force_download or not zip_files or len(zip_files) < len(remote_zip_urls_filtered)
+    
+    if should_download:
+        if force_download:
+            logger.info(f"Force download ativado. Re-baixando {len(remote_zip_urls_filtered)} arquivo(s)...")
+        elif not zip_files:
+            logger.info(f"Nenhum arquivo ZIP encontrado. Baixando {len(remote_zip_urls_filtered)} arquivo(s)...")
+        else:
+            logger.info(f"Faltam {len(remote_zip_urls_filtered) - len(zip_files)} arquivo(s). Completando download...")
+        
+        download_start_time = time.time()
+        downloaded_files, failed_downloads = await download_only_files(
+            urls=remote_zip_urls_filtered,
+            path_zip=source_zip_path,
+            force_download=force_download,
+            show_progress_bar=not (hasattr(args, 'quiet') and args.quiet),
+            show_pending_files=hasattr(args, 'verbose_ui') and args.verbose_ui
+        )
+        download_time = time.time() - download_start_time
+        
+        if not failed_downloads:
+            logger.info(f"✅ Download de {len(downloaded_files)} arquivos concluído em {download_time:.2f}s")
+        else:
+            logger.warning(f"⚠️ Download com {len(failed_downloads)} falhas em {download_time:.2f}s")
+        
+        # Atualizar lista de ZIPs
+        zip_files = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')]
+    else:
+        logger.info(f"Usando {len(zip_files)} arquivo(s) ZIP local(is) existentes")
+    
+    return True, source_zip_path, zip_files

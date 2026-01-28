@@ -1,5 +1,14 @@
 """
 Utilitários para processamento paralelo de arquivos CSV.
+
+ATENÇÃO: Este módulo NÃO lida com download de arquivos.
+Para download, use src.utils.network.ensure_files_downloaded()
+
+Responsabilidades deste módulo:
+- Processar CSVs em paralelo após extração
+- Verificar integridade de arquivos CSV
+- Converter CSV para DataFrame Polars
+- Aplicar operações em lote em DataFrames
 """
 import csv
 import logging
