@@ -5,11 +5,13 @@ O Processador de Painel combina dados de **Estabelecimentos**, **Simples Naciona
 ## ✨ Novidades Implementadas
 
 ### 1. Caminho de Saída Simplificado
+
 - **ANTES**: Os arquivos eram salvos em `parquet/{pasta-remota}/`
 - **AGORA**: Os arquivos são salvos diretamente em `parquet/` (pasta raiz)
 - Use `--output-subfolder` apenas se quiser uma subpasta específica
 
 ### 2. Parâmetro `--no-backup`
+
 - **NOVO**: Adicionado parâmetro `--no-backup` para não fazer backup final
 - **USO**: `python main.py --step painel --no-backup`
 - **EFEITO**: Não copia arquivos para `PATH_REMOTE_PARQUET` (destino/)
@@ -17,25 +19,31 @@ O Processador de Painel combina dados de **Estabelecimentos**, **Simples Naciona
 ## 🚀 Comandos para Executar Apenas o Painel
 
 ### Comando Básico (Dados já baixados)
+
 ```bash
 python main.py --step painel
 ```
 
 ### Especificar Pasta de Dados
+
 ```bash
 python main.py --step painel --source-zip-folder dados-abertos-zip/2024-01
 ```
 
 ### Com Filtros por UF
+
 ```bash
 python main.py --step painel --painel-uf GO
 ```
 
 ### Com Filtros por Situação Cadastral
+
 ```bash
 python main.py --step painel --painel-situacao 2
 ```
+
 **Códigos de Situação:**
+
 - `1` = Nula
 - `2` = Ativa
 - `3` = Suspensa
@@ -43,21 +51,25 @@ python main.py --step painel --painel-situacao 2
 - `8` = Baixada
 
 ### Filtros Combinados
+
 ```bash
 python main.py --step painel --painel-uf SP --painel-situacao 2
 ```
 
 ### Sem Backup Final
+
 ```bash
 python main.py --step painel --no-backup
 ```
 
 ### Salvar em Subpasta Específica
+
 ```bash
 python main.py --step painel --output-subfolder meu_painel_personalizado
 ```
 
 ### Controle de Pasta de Saída
+
 ```bash
 # Comportamento padrão: salva em parquet/{pasta-remota}/
 python main.py --step painel --no-backup
@@ -70,6 +82,7 @@ python main.py --step painel --no-backup --output-subfolder minha_pasta
 ```
 
 ### Modo Silencioso
+
 ```bash
 python main.py --step painel --quiet
 ```
@@ -77,24 +90,28 @@ python main.py --step painel --quiet
 ## 📋 Exemplos Completos
 
 ### 1. Processamento Simples (Comportamento Padrão)
+
 ```bash
 # Processa dados da pasta mais recente, salva em parquet/{pasta-remota}/
 python main.py --step painel --no-backup
 ```
 
 ### 2. Painel de São Paulo (Apenas Ativos)
+
 ```bash
 # Estabelecimentos ativos de SP, sem backup
 python main.py --step painel --painel-uf SP --painel-situacao 2 --no-backup
 ```
 
 ### 3. Painel de Pasta Específica
+
 ```bash
 # Dados de janeiro/2024, salva em subpasta personalizada
 python main.py --step painel --source-zip-folder dados-abertos-zip/2024-01 --output-subfolder painel_jan2024 --no-backup
 ```
 
 ### 4. Painel Completo com Todos os Filtros
+
 ```bash
 # Goiás, estabelecimentos ativos, modo silencioso, sem backup
 python main.py --step painel --painel-uf GO --painel-situacao 2 --quiet --no-backup
@@ -103,7 +120,8 @@ python main.py --step painel --painel-uf GO --painel-situacao 2 --quiet --no-bac
 ## 📁 Estrutura de Arquivos Esperada
 
 **ANTES do processamento (dados já baixados):**
-```
+
+```folder
 parquet/
 ├── base/
 │   ├── municipio.parquet
@@ -118,7 +136,8 @@ parquet/
 ```
 
 **APÓS o processamento:**
-```
+
+```folder
 parquet/
 ├── base/
 ├── estabelecimento/
@@ -130,8 +149,9 @@ parquet/
 ## ⚙️ Pré-requisitos
 
 1. **Dados já processados**: Execute primeiro o processamento das entidades individuais:
+
    ```bash
-   python main.py --tipos empresas estabelecimentos simples
+   python main.py --types empresas estabelecimentos simples
    ```
 
 2. **Estrutura de pastas**: Certifique-se de que as pastas `estabelecimento/`, `simples/` e `empresa/` existem dentro de `parquet/`
@@ -141,18 +161,21 @@ parquet/
 ## 🔧 Solucionando Problemas
 
 ### Erro: "Parquets não encontrados"
+
 ```bash
 # Execute primeiro o processamento das entidades
-python main.py --tipos empresas estabelecimentos simples
+python main.py --types empresas estabelecimentos simples
 ```
 
 ### Erro: "Pasta de dados não encontrada"
+
 ```bash
 # Verifique se a pasta existe ou especifique o caminho correto
 python main.py --step painel --source-zip-folder dados-abertos-zip/2024-01
 ```
 
 ### Painel muito grande
+
 ```bash
 # Use filtros para reduzir o tamanho
 python main.py --step painel --painel-uf SP --painel-situacao 2
@@ -163,46 +186,56 @@ python main.py --step painel --painel-uf SP --painel-situacao 2
 O arquivo `painel_dados.parquet` contém:
 
 ### Dados Principais
+
 - `cnpj_basico`: CNPJ básico (8 dígitos)
 
 ### Matriz/Filial
+
 - `matriz_filial`: Código (1=Matriz, 2=Filial)
 - `descricao_matriz_filial`: Descrição legível
 
 ### Situação Cadastral
+
 - `codigo_situacao`: Código da situação
 - `descricao_situacao`: Descrição da situação
 - `tipo_situacao_cadastral`: Tipo da situação
 - `descricao_tipo_situacao`: Descrição do tipo
 
 ### Motivo
+
 - `codigo_motivo`: Código do motivo
 - `descricao_motivo`: Descrição do motivo
 
 ### Datas
+
 - `data_situacao_cadastral`: Data da situação (YYYYMMDD)
 - `data_inicio_atividades`: Data de início (YYYYMMDD)
 
 ### Atividade
+
 - `codigo_cnae`: Código CNAE principal
 
 ### Empresa
+
 - `natureza_juridica`: Código da natureza jurídica
 - `descricao_natureza_juridica`: Descrição da natureza
 - `porte_empresa`: Código do porte
 - `descricao_porte`: Descrição do porte
 
 ### Simples Nacional
+
 - `opcao_simples`: Optante pelo Simples (Sim/Não)
 - `data_opcao_simples`: Data da opção (YYYYMMDD)
 - `data_exclusao_simples`: Data da exclusão (YYYYMMDD)
 
 ### MEI
+
 - `opcao_mei`: Optante pelo MEI (Sim/Não)
 - `data_opcao_mei`: Data da opção (YYYYMMDD)
 - `data_exclusao_mei`: Data da exclusão (YYYYMMDD)
 
 ### Localização
+
 - `codigo_ibge`: Código IBGE do município (7 dígitos)
 - `nome_municipio`: Nome do município
 - `uf`: Unidade Federativa (estado)
@@ -211,22 +244,26 @@ O arquivo `painel_dados.parquet` contém:
 ## 🎯 Casos de Uso
 
 ### 1. Análise de Empresas Ativas por Estado
+
 ```bash
 python main.py --step painel --painel-uf MG --painel-situacao 2 --no-backup
 ```
 
 ### 2. Relatório de Optantes pelo Simples Nacional
+
 ```bash
 python main.py --step painel --no-backup
 # Depois filtrar por opcao_simples = 'Sim' na análise
 ```
 
 ### 3. Dados para Business Intelligence
+
 ```bash
 python main.py --step painel --output-subfolder bi_export --no-backup
 ```
 
 ### 4. Backup de Dados Específicos
+
 ```bash
 # COM backup (salva também em destino/)
 python main.py --step painel --painel-uf GO --output-subfolder painel_go
@@ -242,13 +279,15 @@ python main.py --step painel --painel-uf GO --output-subfolder painel_go
 ## 🔍 Logs e Monitoramento
 
 O processamento gera logs detalhados mostrando:
+
 - Número de registros de cada entidade
 - Tempo de cada operação (JOINs, transformações, salvamento)
 - Tamanho do arquivo final
 - Estatísticas de performance
 
 **Exemplo de saída:**
-```
+
+```folder
 🔄 === INICIANDO PROCESSAMENTO DO PAINEL ===
 ✓ Scans criados:
   └─ Estabelecimentos: 52,991,787 registros
@@ -285,6 +324,7 @@ O **PainelProcessor** é um sistema completo para processamento de dados da Rece
 Agora você pode processar o painel diretamente através do `main.py` usando os novos argumentos:
 
 ### Argumentos Disponíveis
+
 - `--processar-painel` (`-P`): Ativa o processamento do painel
 - `--painel-uf UF`: Filtra por UF específica (ex: SP, GO)
 - `--painel-situacao CODIGO`: Filtra por situação cadastral (1=Nula, 2=Ativa, 3=Suspensa, 4=Inapta, 8=Baixada)
@@ -293,47 +333,59 @@ Agora você pode processar o painel diretamente através do `main.py` usando os 
 ### Exemplos Práticos via Linha de Comando
 
 #### 1. Processamento Completo com Painel (TODOS OS DADOS - SEM FILTROS)
+
 ```bash
 python main.py --processar-painel
 ```
+
 **Este é o comando mais básico** - processa todos os estabelecimentos, empresas e simples nacional do Brasil inteiro, incluindo apenas estabelecimentos ativos.
 
 #### 2. Processamento Completo com TODOS OS DADOS (Incluindo Inativos)
+
 ```bash
 python main.py --processar-painel --painel-incluir-inativos
 ```
+
 **Versão mais completa** - inclui todos os estabelecimentos (ativos E inativos) do Brasil inteiro.
 
 #### 3. Painel Filtrado por São Paulo (Apenas Ativos)
+
 ```bash
 python main.py --processar-painel --painel-uf SP --painel-situacao 2
 ```
 
 #### 4. Painel para Goiás incluindo inativos
+
 ```bash
 python main.py --processar-painel --painel-uf GO --painel-incluir-inativos
 ```
 
 #### 5. Processamento com Tipos Específicos + Painel
+
 ```bash
-python main.py --tipos empresas estabelecimentos simples --processar-painel --painel-uf MG
+python main.py --types empresas estabelecimentos simples --processar-painel --painel-uf MG
 ```
 
 #### 6. Painel de Pasta Remota Específica
+
 ```bash
 python main.py --remote-folder 2024-01 --processar-painel --painel-situacao 2
 ```
 
 #### 7. Pipeline Completo com Economia Máxima (TODOS OS DADOS)
+
 ```bash
 python main.py --processar-painel --cleanup-all-after-db
 ```
+
 **Recomendado para produção** - processa todos os dados e limpa arquivos intermediários para economizar espaço.
 
 #### 8. Processamento Silencioso para Automação (TODOS OS DADOS)
+
 ```bash
 python main.py --processar-painel --quiet
 ```
+
 **Ideal para scripts automatizados** - processa todos os dados sem interface visual.
 
 ---
@@ -345,6 +397,7 @@ python main.py --processar-painel --quiet
 ### 🔄 Paralelização no Pipeline Principal
 
 #### 1. Downloads Simultâneos
+
 - **Até 6 downloads simultâneos** por padrão (adaptativo baseado na rede)
 - **Configuração automática** baseada na qualidade da conexão
 - **Semáforos adaptativos** para controle de recursos
@@ -356,6 +409,7 @@ download_semaphore = asyncio.Semaphore(max_concurrent_downloads)
 ```
 
 #### 2. Processamento Assíncrono
+
 - **Pipeline imediato**: arquivos são processados assim que baixados
 - **Workers múltiplos** para processamento paralelo
 - **Fila de processamento** para otimizar uso de recursos
@@ -366,6 +420,7 @@ max_concurrent_processing = min(cpu_count, max(min_workers, cpu_count * 3 // 4))
 ```
 
 #### 3. Joins Otimizados com Polars
+
 - **Lazy Loading**: carregamento otimizado dos dados
 - **Joins paralelos**: LEFT JOIN + INNER JOIN executados de forma otimizada
 - **CNPJ Bigint**: performance 3-5x melhor que strings
@@ -373,6 +428,7 @@ max_concurrent_processing = min(cpu_count, max(min_workers, cpu_count * 3 // 4))
 ### 🧠 Detecção Automática de Recursos
 
 O sistema detecta automaticamente:
+
 - **Número de CPUs** disponíveis
 - **Quantidade de RAM** disponível  
 - **Qualidade da conexão** de rede
@@ -413,6 +469,7 @@ O processamento do painel **NÃO é paralelo internamente** (os JOINs são seque
 ### 📈 Performance Esperada
 
 Com paralelização ativa:
+
 - **Download**: 3-6x mais rápido que sequencial
 - **Processamento**: 2-4x mais rápido que sequencial  
 - **Pipeline completo**: 50-70% de redução no tempo total
@@ -559,6 +616,7 @@ sucesso = processor.process_complete_painel()
 ## Parâmetros de Configuração
 
 ### 📂 Caminhos Essenciais
+
 ```python
 {
     'path_zip': str,          # Diretório com arquivos ZIP
@@ -568,6 +626,7 @@ sucesso = processor.process_complete_painel()
 ```
 
 ### 📄 Caminhos Específicos (Opcionais)
+
 ```python
 {
     'estabelecimento_path': str,  # Caminho para parquets de estabelecimentos
@@ -577,6 +636,7 @@ sucesso = processor.process_complete_painel()
 ```
 
 ### 🎛️ Controle do Pipeline
+
 ```python
 {
     'force_reprocess': bool,              # Forçar reprocessamento
@@ -587,6 +647,7 @@ sucesso = processor.process_complete_painel()
 ```
 
 ### 🔍 Filtros e Opções
+
 ```python
 {
     'uf_filter': str,           # Filtrar por UF específica
@@ -602,6 +663,7 @@ sucesso = processor.process_complete_painel()
 ### Campos da Entidade Painel
 
 #### 🏢 Dados do Estabelecimento (base)
+
 - `cnpj_basico` (bigint) - CNPJ básico de 8 dígitos
 - `matriz_filial` (int) - 1=Matriz, 2=Filial
 - `codigo_situacao` (int) - Código da situação cadastral
@@ -614,10 +676,12 @@ sucesso = processor.process_complete_painel()
 - `tipo_situacao_cadastral` (int)
 
 #### 🏭 Dados da Empresa (inner join)
+
 - `natureza_juridica` (int) - Código da natureza jurídica
 - `porte_empresa` (int) - 1=Micro, 2=Pequena, 3=Média, 4=Grande, 5=Demais
 
 #### 📊 Dados do Simples Nacional (left join)
+
 - `opcao_simples` (string) - S/N
 - `data_opcao_simples` (datetime)
 - `data_exclusao_simples` (datetime)
@@ -630,7 +694,9 @@ sucesso = processor.process_complete_painel()
 ## Relatórios e Análises
 
 ### 📈 Relatório Automático
+
 O processador gera automaticamente:
+
 - Total de registros processados
 - Distribuição por UF (Top 10)
 - Estatísticas de opção pelo Simples Nacional
@@ -640,6 +706,7 @@ O processador gera automaticamente:
 - Distribuição por porte da empresa
 
 ### 🔍 Análise Manual
+
 ```python
 from src.process.processors.painel_processor import analisar_painel
 
@@ -652,6 +719,7 @@ analisar_painel('/dados/output/painel_dados.parquet')
 ## Exemplos Práticos
 
 ### Cenário 1: Empresa Nova (Sem Dados)
+
 ```python
 # Pipeline completo desde download
 processor = PainelProcessor(
@@ -665,6 +733,7 @@ sucesso = processor.process_complete_painel()
 ```
 
 ### Cenário 2: Dados Parciais (Tem ZIPs)
+
 ```python
 # Já tem ZIPs, pular download
 processor = PainelProcessor(
@@ -678,6 +747,7 @@ sucesso = processor.process_complete_painel()
 ```
 
 ### Cenário 3: Análise Específica (SP, Apenas Ativos)
+
 ```python
 # Filtro específico para São Paulo, apenas estabelecimentos ativos
 processor = PainelProcessor(
@@ -695,6 +765,7 @@ sucesso = processor.process_complete_painel(
 ```
 
 ### Cenário 4: Produção (Parquets Existentes)
+
 ```python
 # Ambiente de produção com dados já processados
 processor = PainelProcessor(
@@ -715,17 +786,20 @@ sucesso = processor.process_painel_data('painel_producao.parquet')
 ## Performance e Otimizações
 
 ### 🚀 Melhorias Implementadas
+
 - **CNPJ Bigint**: Joins 3-5x mais rápidos que strings
 - **Lazy Loading**: Carregamento otimizado com Polars
 - **Compressão Snappy**: Arquivos parquet compactados
 - **Detecção Inteligente**: Evita reprocessamento desnecessário
 
 ### 💾 Estimativas de Recursos
+
 - **RAM**: ~8-16GB para dados completos do Brasil
 - **Disco**: ~50-100GB para todos os parquets intermediários
 - **Tempo**: ~30-60 minutos pipeline completo (dados 2024)
 
 ### ⚡ Dicas de Performance
+
 1. Use SSD para melhor I/O
 2. Configure `skip_*` adequadamente
 3. Use filtros para reduzir volume
@@ -736,13 +810,15 @@ sucesso = processor.process_painel_data('painel_producao.parquet')
 ## Tratamento de Erros
 
 ### 🛡️ Validações Automáticas
+
 - Verificação de integridade dos dados
 - Validação de relacionamentos entre entidades  
 - Detecção de inconsistências em datas
 - Exclusão automática de estabelecimentos no exterior (UF=EX)
 
 ### 📝 Logs Detalhados
-```
+
+```log
 INFO: Estado atual dos dados: {'precisa_download': False, 'tem_parquets': True}
 INFO: Parquets já existem, usando dados processados
 INFO: Estabelecimentos carregados: 45,123,456 registros
@@ -758,24 +834,28 @@ INFO: ✓ Dados do Painel salvos: /dados/output/painel_dados_20241201_143022.par
 ### ❌ Problemas Comuns
 
 **1. "Parquets de empresas não encontrados"**
+
 ```bash
 # Verificar se o caminho existe e tem arquivos .parquet
 ls -la /caminho/para/empresas/
 ```
 
 **2. "Falha no processamento individual"**
+
 ```python
 # Verificar se os processadores individuais existem
 from src.process.processors.empresa_processor import EmpresaProcessor
 ```
 
 **3. "CNPJ básico deve ser um número inteiro"**
+
 ```python
 # Os dados são automaticamente convertidos para Int64
 # Verificar se os parquets de origem estão íntegros
 ```
 
 ### ✅ Soluções
+
 1. **Verificar caminhos**: Sempre usar caminhos absolutos
 2. **Permissões**: Verificar read/write nos diretórios
 3. **Espaço em disco**: Manter pelo menos 100GB livres
@@ -786,6 +866,7 @@ from src.process.processors.empresa_processor import EmpresaProcessor
 ## Integração com Outros Sistemas
 
 ### 📊 Exportação para BI
+
 ```python
 # Exportar para CSV para ferramentas de BI
 processor.export_to_csv(
@@ -796,6 +877,7 @@ processor.export_to_csv(
 ```
 
 ### 🐍 Uso em Scripts
+
 ```python
 # Integração com pipeline de dados
 def pipeline_diario():
@@ -813,6 +895,7 @@ def pipeline_diario():
 ## Roadmap
 
 ### 🔮 Próximas Melhorias
+
 - [ ] Download automático com requests
 - [ ] Processamento distribuído com Dask
 - [ ] Cache inteligente de resultados
@@ -820,6 +903,4 @@ def pipeline_diario():
 - [ ] Dashboard web para monitoramento
 - [ ] Integração com Apache Airflow
 
----
-
-**Desenvolvido para máxima eficiência e flexibilidade no processamento de dados da Receita Federal** 🇧🇷 
+### Desenvolvido para máxima eficiência e flexibilidade no processamento de dados da Receita Federal

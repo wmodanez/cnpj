@@ -16,7 +16,7 @@ Cada step é composto pelos anteriores:
    python main.py
 
 2. Processar apenas tipos específicos:
-   python main.py --tipos empresas estabelecimentos
+   python main.py --types empresas estabelecimentos
 
 3. Usar pasta remota específica:
    python main.py --remote-folder 2024-05
@@ -68,7 +68,7 @@ Cada step é composto pelos anteriores:
 
 PARÂMETROS PRINCIPAIS:
 - --step: Define etapa (download|extract|csv|process|database|painel|all)
-- --tipos: Tipos a processar (empresas|estabelecimentos|simples|socios)
+- --types: Tipos a processar (empresas|estabelecimentos|simples|socios)
 - --remote-folder: Pasta remota específica (AAAA-MM)
 - --output-subfolder: Subpasta de saída para parquets
 - --output-csv-folder: Pasta de saída para CSVs normalizados (step csv)
@@ -118,6 +118,9 @@ load_env_with_defaults()
 
 # Importar versão centralizada
 from cnpj_processor import get_full_description, get_version
+
+# Importar sistema de localização
+from src.localization import get_localization, set_locale
 
 from cnpj_processor import (
     download_multiple_files, 
@@ -420,7 +423,18 @@ async def async_main():
         description=get_full_description()
     )
     
-    parser.add_argument('--tipos', '-t', nargs='+', choices=['empresas', 'estabelecimentos', 'simples', 'socios'],
+    # Adicionar opção de locale ANTES de processar outros argumentos
+    parser.add_argument(
+        '--locale',
+        type=str,
+        choices=['pt_BR', 'pt_PT', 'en_US', 'en_GB'],
+        help='Especificar idioma: pt_BR, pt_PT, en_US, en_GB. Padrão: detectado automaticamente'
+    )
+    
+    # Argumentos padrão
+    loc = get_localization()
+    
+    parser.add_argument('--types', '-t', nargs='+', choices=['empresas', 'estabelecimentos', 'simples', 'socios'],
                          default=[], help='Tipos de dados a serem processados. Se não especificado, processa todos (relevante para steps \'process\' e \'all\').')
     parser.add_argument('--step', '-s', choices=['download', 'extract', 'csv', 'process', 'database', 'painel', 'all'], default='all',
                          help='Etapa a ser executada. Padrão: all')
@@ -438,10 +452,10 @@ async def async_main():
                          help='Iniciar download/processamento a partir de uma pasta específica (formato AAAA-MM)')
     parser.add_argument('--force-download', '-F', action='store_true',
                          help='Forçar download mesmo que arquivo já exista')
-    parser.add_argument('--criar-empresa-privada', '-E', action='store_true',
+    parser.add_argument('--create-private-subset', '-E', action='store_true',
                          help='Criar subconjunto de empresas privadas (apenas para empresas)')
-    parser.add_argument('--criar-subset-uf', '-U', type=str, metavar='UF',
-                         help='Criar subconjunto por UF (apenas para estabelecimentos). Ex: --criar-subset-uf SP')
+    parser.add_argument('--create-uf-subset', '-U', type=str, metavar='UF',
+                         help='Criar subconjunto por UF (apenas para estabelecimentos). Ex: --create-uf-subset SP')
     parser.add_argument('--output-subfolder', '-o', type=str,
                          help='Nome da subpasta onde salvar os arquivos parquet. Use "." para pasta raiz')
     parser.add_argument('--output-csv-folder', type=str,
@@ -468,13 +482,13 @@ async def async_main():
                          help='Forçar exibição da lista de arquivos pendentes (sobrescreve config)')
     parser.add_argument('--hide-pending', '-W', action='store_true',
                          help='Forçar ocultação da lista de arquivos pendentes (sobrescreve config)')
-    parser.add_argument('--processar-painel', '-P', action='store_true',
+    parser.add_argument('--process-panel', '-P', action='store_true',
                          help='Processar dados do painel (combina estabelecimentos + simples + empresas)')
-    parser.add_argument('--painel-uf', type=str, metavar='UF',
+    parser.add_argument('--panel-uf', type=str, metavar='UF',
                          help='Filtrar painel por UF específica (ex: SP, GO, MG)')
-    parser.add_argument('--painel-situacao', type=int, metavar='CODIGO',
+    parser.add_argument('--panel-status', type=int, metavar='CODIGO',
                          help='Filtrar painel por situação cadastral (1=Nula, 2=Ativa, 3=Suspensa, 4=Inapta, 8=Baixada)')
-    parser.add_argument('--painel-incluir-inativos', action='store_true',
+    parser.add_argument('--panel-include-inactive', action='store_true',
                          help='Incluir estabelecimentos inativos no painel')
     parser.add_argument('--normalize-csv', action='store_true',
                          help='Gerar arquivos CSV normalizados (com as mesmas regras de padronização dos parquets)')
@@ -483,6 +497,14 @@ async def async_main():
     parser.add_argument('--version', '-V', action='store_true',
                          help='Exibir a versão do cnpj-processor e sair')
 
+    # Parse apenas os argumentos conhecidos para extrair --locale primeiro
+    args, remaining = parser.parse_known_args()
+    
+    # Se --locale foi especificado, aplicar antes de continuar
+    if args.locale:
+        set_locale(args.locale)
+    
+    # Fazer parse completo dos argumentos
     args = parser.parse_args()
     
     # Tratamento especial: --show-latest-folder com log desabilitado
@@ -646,8 +668,8 @@ async def async_main():
             source_zip_path=source_zip_path,
             unzip_path=PATH_UNZIP,
             output_parquet_path=output_parquet_path,
-            uf_filter=args.painel_uf,
-            situacao_filter=args.painel_situacao,
+            uf_filter=args.panel_uf,
+            situacao_filter=args.panel_status,
             output_filename=None,  # Será gerado automaticamente
             remote_folder=args.remote_folder  # Passar o remote_folder
         )
@@ -1034,10 +1056,10 @@ async def async_main():
         
         # Preparar opções de processamento
         processing_options = {}
-        if hasattr(args, 'criar_empresa_privada') and args.criar_empresa_privada:
+        if hasattr(args, 'create_private_subset') and args.create_private_subset:
             processing_options['create_private'] = True
-        if hasattr(args, 'criar_subset_uf') and args.criar_subset_uf:
-            processing_options['uf_subset'] = args.criar_subset_uf
+        if hasattr(args, 'create_uf_subset') and args.create_uf_subset:
+            processing_options['uf_subset'] = args.create_uf_subset
         
         # 🆕 Executar pipeline otimizado unificado (download + processamento em paralelo)
         print_section("Pipeline Otimizado: Download e Processamento Paralelo")
@@ -1134,7 +1156,7 @@ async def async_main():
                 logger.warning(f"⚠️ Erro ao remover pastas de trabalho: {e}")
         
         # 2.5. Processamento do Painel (se solicitado)
-        if args.processar_painel:
+        if args.process_panel:
             print_section("Etapa 2.5: Processamento do Painel Consolidado")
             painel_start_time = time.time()
             
@@ -1142,8 +1164,8 @@ async def async_main():
                 source_zip_path=source_zip_path,
                 unzip_path=PATH_UNZIP,
                 output_parquet_path=output_parquet_path,
-                uf_filter=args.painel_uf,
-                situacao_filter=args.painel_situacao,
+                uf_filter=args.panel_uf,
+                situacao_filter=args.panel_status,
                 output_filename=None,  # Será gerado automaticamente
                 remote_folder=remote_folder
             )
@@ -1259,6 +1281,7 @@ def process_painel_complete(source_zip_path: str, unzip_path: str, output_parque
         uf_filter: Filtro por UF (opcional)
         situacao_filter: Filtro por situação cadastral (opcional)
         output_filename: Nome do arquivo de saída (opcional)
+        remote_folder: Pasta remota de origem dos dados (opcional)
         
     Returns:
         bool: True se processamento foi bem-sucedido

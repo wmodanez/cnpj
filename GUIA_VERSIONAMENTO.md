@@ -113,7 +113,7 @@ cnpj-processor --help
 cnpj-processor
 
 # Processar tipos específicos
-cnpj-processor --tipos empresas estabelecimentos
+cnpj-processor --types empresas estabelecimentos
 
 # Download com pasta específica
 cnpj-processor --step download --remote-folder 2024-05

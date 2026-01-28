@@ -23,7 +23,7 @@ pip install cnpj-processor
 cnpj-processor
 
 # Download apenas
-cnpj-processor --step download --tipos empresas estabelecimentos
+cnpj-processor --step download --types empresas estabelecimentos
 
 # Processar painel consolidado por UF
 cnpj-processor --step painel --painel-uf GO --painel-situacao 2
@@ -124,7 +124,7 @@ processor.run(
 
 | Parâmetro | Tipo | Descrição |
 | --------- | ---- | --------- |
-| `step` | str | Etapa: 'download', 'extract', 'process', 'database', 'painel', 'all' |
+| `step` | str | Etapa: 'download', 'extract', 'csv', 'process', 'database', 'painel', 'all' |
 | `tipos` | list | Tipos a processar: ['empresas', 'estabelecimentos', 'simples', 'socios'] |
 | `remote_folder` | str | Pasta remota (formato AAAA-MM) |
 | `output_subfolder` | str | Subpasta de saída |
@@ -237,8 +237,16 @@ success, folder = processor.run(
     source_zip_folder='dados-abertos-zip/2026-01'
 )
 
+# Gerar CSVs normalizados (sem converter para parquet)
+success, folder = processor.run(
+    step='csv',
+    tipos=['socios'],
+    output_csv_folder='csvs_normalizados'
+)
+
 # Útil quando você:
-# - Quer verificar conteúdo dos ZIPs manualmente
+# - Quer verificar conteúdo dos ZIPs manualmente (extract)
+# - Precisa de CSVs com nomes de colunas padronizados (csv)
 # - Prefere fazer o processamento depois
 # - Usa ferramentas externas para análise dos CSVs
 
@@ -312,11 +320,14 @@ cnpj-processor --step download --remote-folder 2026-01
 # Apenas descompactar ZIPs (sem processar)
 cnpj-processor --step extract --source-zip-folder dados-abertos-zip/2026-01
 
+# Gerar CSVs normalizados
+cnpj-processor --step csv --types socios --output-csv-folder csvs_normalizados
+
 # Processar dados já descompactados
 cnpj-processor --step process --source-zip-folder dados-abertos-zip/2026-01 --output-subfolder processados
 
 # Processar apenas estabelecimentos
-cnpj-processor --tipos estabelecimentos
+cnpj-processor --types estabelecimentos
 
 # Painel filtrado
 cnpj-processor --step painel --painel-uf GO --painel-situacao 2
@@ -343,12 +354,16 @@ Interface otimizada com atalhos intuitivos:
 
 ```bash
 # Equivalentes (forma completa vs. atalho)
-cnpj-processor --tipos empresas --step download --remote-folder 2026-01
+cnpj-processor --types empresas --step download --remote-folder 2026-01
 cnpj-processor -t empresas -s download -r 2026-01
 
 # Descompactar e processar com atalhos
 cnpj-processor --step extract --source-zip-folder dados-abertos-zip/2026-01
 cnpj-processor -s extract -z dados-abertos-zip/2026-01
+
+# Gerar CSVs normalizados com atalhos
+cnpj-processor --step csv --types socios
+cnpj-processor -s csv -t socios
 
 # Criar banco com economia de espaço
 cnpj-processor --create-database --cleanup-after-db --quiet

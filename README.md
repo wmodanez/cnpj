@@ -79,7 +79,7 @@ python main.py --step process --source-zip-folder dados-abertos-zip/2026-01 --ou
 - ✅ **Resolução de conflitos**: Sistema inteligente (ex: -h reservado para help, -W para hide-pending)
 - ✅ **Documentação completa**: 3 documentos especializados com 40+ exemplos práticos
 - ✅ **Exemplos comparativos**:
-  - **ANTES**: `--tipos empresas --step process --source-zip-folder dados --output-subfolder resultado --quiet --delete-zips-after-extract --cleanup-after-db`
+  - **ANTES**: `--types empresas --step process --source-zip-folder dados --output-subfolder resultado --quiet --delete-zips-after-extract --cleanup-after-db`
   - **AGORA**: `-t empresas -s process -z dados -o resultado -q -d -c` ⚡ **78% mais curto!**
 
 **⚙️ SISTEMA DE VERSIONAMENTO AUTOMÁTICO (junho 2025):**
@@ -327,8 +327,8 @@ python main.py --keep-artifacts --create-database --keep-parquet-after-db
 
 | Atalho | Argumento Completo   | Descrição                                                    |
 |--------|----------------------|--------------------------------------------------------------|
-| `-t`   | `--tipos`            | Tipos de dados (empresas, estabelecimentos, simples, socios) |
-| `-s`   | `--step`             | Etapa (download, process, database, all)                     |
+| `-t`   | `--types`            | Tipos de dados (empresas, estabelecimentos, simples, socios) |
+| `-s`   | `--step`             | Etapa (download, extract, csv, process, database, painel, all) |
 | `-q`   | `--quiet`            | Modo silencioso                                              |
 | `-v`   | `--verbose-ui`       | Modo verboso                                                 |
 | `-r`   | `--remote-folder`    | Pasta remota para download/processamento                     |
@@ -367,7 +367,7 @@ python main.py --keep-artifacts --create-database --keep-parquet-after-db
 
 ```bash
 # ANTES (78 caracteres):
-python main.py --tipos empresas --step download --quiet --remote-folder 2024-01
+python main.py --types empresas --step download --quiet --remote-folder 2024-01
 
 # AGORA (36 caracteres - 54% mais curto):
 python main.py -t empresas -s download -q -r 2024-01
@@ -376,11 +376,11 @@ python main.py -t empresas -s download -q -r 2024-01
 #### **Processamento com Economia de Espaço**
 
 ```bash
-# ANTES (132 caracteres):
-python main.py --tipos estabelecimentos --step process --delete-zips-after-extract --cleanup-after-db --quiet --output-subfolder resultado
+# ANTES (111 caracteres):
+python main.py --types estabelecimentos --step process --delete-zips-after-extract --quiet --output-subfolder resultado
 
-# AGORA (47 caracteres - 64% mais curto):
-python main.py -t estabelecimentos -s process -d -c -q -o resultado
+# AGORA (47 caracteres - 58% mais curto):
+python main.py -t estabelecimentos -s process -d -q -o resultado
 ```
 
 #### **Download Sequencial Otimizado**
@@ -395,8 +395,16 @@ python main.py -a -f 2023-01 -q -d
 
 ### 📚 Documentação Completa de Atalhos
 
-- **[ATALHOS.md](ATALHOS.md)**: Guia completo com todos os atalhos e exemplos detalhados
-- **[README_ATALHOS.md](README_ATALHOS.md)**: Resumo executivo dos atalhos mais importantes
+Para referência completa de todos os atalhos e exemplos práticos, consulte:
+
+📖 **[ATALHOS.md](ATALHOS.md)** - Guia completo consolidado com:
+
+- Referência rápida dos top 10 atalhos
+- Tabelas completas de todos os argumentos
+- Exemplos práticos por cenário
+- Combinações power user
+- Comparativos antes/depois
+- Dicas de uso e workflows recomendados
 
 ## ⚙️ Sistema de Versionamento
 
@@ -646,7 +654,7 @@ python main.py -a -f 2023-01 --processar-painel
 **🎯 Principais Argumentos com Atalhos:**
 
 *`--step/-s {download,process,database,all}`: Define qual(is) etapa(s) executar (padrão: `all`).
-*`--tipos/-t {empresas,estabelecimentos,simples,socios}`: Filtra quais tipos de dados baixar ou processar (padrão: todos).
+*`--types/-t {empresas,estabelecimentos,simples,socios}`: Filtra quais tipos de dados baixar ou processar (padrão: todos).
 *`--remote-folder/-r <pasta>`: Especifica a pasta remota dos dados (ex: `2024-01`). Usado para organizar arquivos por data.
 *`--source-zip-folder/-z <caminho>`: Pasta de origem dos arquivos ZIP (obrigatório para `--step process`).
 *`--output-subfolder/-o <nome>`: Subpasta em `PATH_PARQUET` para salvar/ler Parquets (obrigatório para `--step process` e `--step database`).
@@ -894,7 +902,7 @@ O sistema agora utiliza um **pipeline revolucionário** que elimina a latência 
 
 ```bash
 # Pipeline otimizado - processamento imediato (NOVO)
-python main.py --tipos socios  # 70% mais rápido!
+python main.py --types socios  # 70% mais rápido!
 
 # Pipeline com economia total de espaço (OTIMIZADO)
 python main.py --delete-zips-after-extract --cleanup-all-after-db --quiet
@@ -906,7 +914,7 @@ python main.py --all-folders --from-folder 2023-01 --quiet
 python main.py --help
 
 # Execução completa com pipeline revolucionário
-python main.py --step all --tipos empresas
+python main.py --step all --types empresas
 ```
 
 ## 🛠️ Processamento e Regras de Negócio

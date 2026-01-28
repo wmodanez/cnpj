@@ -15,7 +15,7 @@ Uso básico:
     
 Uso via CLI:
     cnpj-processor --help
-    cnpj-processor --tipos empresas estabelecimentos
+    cnpj-processor --types empresas estabelecimentos
     cnpj-processor --step download --remote-folder 2024-05
 """
 
@@ -200,7 +200,7 @@ class CNPJProcessor:
         sys.argv = ['cnpj-processor', f'--step={step}', f'--log-level={log_level}']
         
         if tipos:
-            sys.argv.extend(['--tipos'] + tipos)
+            sys.argv.extend(['--types'] + tipos)
         if remote_folder:
             sys.argv.extend(['--remote-folder', remote_folder])
         if output_subfolder:

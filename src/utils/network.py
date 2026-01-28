@@ -309,7 +309,7 @@ async def ensure_files_downloaded(
         remote_folder: Pasta remota específica (opcional)
         
     Returns:
-        tuple: (sucesso: bool, pasta_destino: str, lista_de_zips: list)
+        tuple: (success: bool, destination_path: str, zip_list: list)
     """
     import os
     from ..async_downloader import (
