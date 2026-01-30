@@ -18,15 +18,6 @@ pip install cnpj-processor
 
 **🆕 Integrado**: O cnpj-processor agora suporta nativamente a infraestrutura **Nextcloud** da Receita Federal!
 
-### ✨ Principais Características
-
-- ✅ **Zero Configuração**: Funciona automaticamente com a URL oficial da Receita Federal
-- ✅ **Cliente WebDAV Nativo**: Implementação Python pura, sem dependências de navegador
-- ✅ **Compatibilidade Total**: Suporta URLs Nextcloud e tradicionais automaticamente
-- ✅ **Autenticação Transparente**: Gerencia tokens de acesso automaticamente
-- ✅ **Performance Otimizada**: Requisições assíncronas de alta performance
-- ✅ **Recuperação Automática**: Sistema robusto de retry em caso de falhas
-
 ### 🎯 Como Funciona
 
 O sistema detecta automaticamente URLs Nextcloud e aplica autenticação apropriada:
@@ -50,22 +41,6 @@ O Nextcloud da Receita Federal disponibiliza:
 - **Pasta mais recente**: 2026-01 (37 arquivos, 6.79 GB)
 - **Dados completos**: Empresas, Estabelecimentos, Sócios, Simples Nacional
 - **Atualização mensal**: Novos dados publicados mensalmente
-
-### 🔧 Tecnologia
-
-O suporte Nextcloud utiliza:
-
-- **Protocolo WebDAV**: Para listagem e navegação de diretórios
-- **Basic Auth**: Autenticação com token público da Receita Federal
-- **aiohttp**: Requisições HTTP assíncronas de alta performance
-- **BeautifulSoup + lxml**: Parsing de respostas XML do servidor
-
-### 📚 Documentação Técnica
-
-Para detalhes completos sobre a implementação:
-
-- **[NEXTCLOUD_MIGRATION.md](../docs/NEXTCLOUD_MIGRATION.md)**: Documentação técnica completa
-- **[test_nextcloud.py](../test/test_nextcloud.py)**: Scripts de teste e validação
 
 ## ⚡ Início Rápido
 
@@ -178,7 +153,7 @@ processor.run(
 | Parâmetro | Tipo | Descrição |
 | --------- | ---- | --------- |
 | `step` | str | Etapa: 'download', 'extract', 'csv', 'process', 'database', 'painel', 'all' |
-| `tipos` | list | Tipos a processar: ['empresas', 'estabelecimentos', 'simples', 'socios'] |
+| `type` | list | Tipos a processar: ['empresas', 'estabelecimentos', 'simples', 'socios'] |
 | `remote_folder` | str | Pasta remota (formato AAAA-MM) |
 | `output_subfolder` | str | Subpasta de saída |
 | `source_zip_folder` | str | Pasta de origem dos ZIPs (para extract/process) |
