@@ -14,6 +14,59 @@ Automatize o download, processamento e análise dos dados públicos de CNPJ com 
 pip install cnpj-processor
 ```
 
+## ☁️ Suporte ao Nextcloud da Receita Federal
+
+**🆕 Integrado**: O cnpj-processor agora suporta nativamente a infraestrutura **Nextcloud** da Receita Federal!
+
+### ✨ Principais Características
+
+- ✅ **Zero Configuração**: Funciona automaticamente com a URL oficial da Receita Federal
+- ✅ **Cliente WebDAV Nativo**: Implementação Python pura, sem dependências de navegador
+- ✅ **Compatibilidade Total**: Suporta URLs Nextcloud e tradicionais automaticamente
+- ✅ **Autenticação Transparente**: Gerencia tokens de acesso automaticamente
+- ✅ **Performance Otimizada**: Requisições assíncronas de alta performance
+- ✅ **Recuperação Automática**: Sistema robusto de retry em caso de falhas
+
+### 🎯 Como Funciona
+
+O sistema detecta automaticamente URLs Nextcloud e aplica autenticação apropriada:
+
+```python
+from cnpj_processor import CNPJProcessor
+
+# Funciona automaticamente com Nextcloud
+processor = CNPJProcessor()
+success, folder = processor.run()
+
+# O sistema detecta e autentica automaticamente em:
+# https://arquivos.receitafederal.gov.br/index.php/s/gn672Ad4CF8N6TK?dir=/Dados/Cadastros/CNPJ
+```
+
+### 📦 Dados Disponíveis
+
+O Nextcloud da Receita Federal disponibiliza:
+
+- **33 pastas históricas** desde 2023-05
+- **Pasta mais recente**: 2026-01 (37 arquivos, 6.79 GB)
+- **Dados completos**: Empresas, Estabelecimentos, Sócios, Simples Nacional
+- **Atualização mensal**: Novos dados publicados mensalmente
+
+### 🔧 Tecnologia
+
+O suporte Nextcloud utiliza:
+
+- **Protocolo WebDAV**: Para listagem e navegação de diretórios
+- **Basic Auth**: Autenticação com token público da Receita Federal
+- **aiohttp**: Requisições HTTP assíncronas de alta performance
+- **BeautifulSoup + lxml**: Parsing de respostas XML do servidor
+
+### 📚 Documentação Técnica
+
+Para detalhes completos sobre a implementação:
+
+- **[NEXTCLOUD_MIGRATION.md](../docs/NEXTCLOUD_MIGRATION.md)**: Documentação técnica completa
+- **[test_nextcloud.py](../test/test_nextcloud.py)**: Scripts de teste e validação
+
 ## ⚡ Início Rápido
 
 ### Via Linha de Comando (CLI)

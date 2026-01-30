@@ -25,6 +25,100 @@ O sistema detecta automaticamente o sistema operacional e usa as APIs nativas ma
 
 Todas as funcionalidades foram testadas e validadas em múltiplas plataformas, garantindo experiência consistente independente do sistema operacional.
 
+## ☁️ Suporte ao Nextcloud da Receita Federal
+
+**🆕 NOVIDADE**: O sistema agora suporta nativamente a nova infraestrutura **Nextcloud** da Receita Federal!
+
+### 🎯 Características do Suporte Nextcloud
+
+- ✅ **Cliente WebDAV Puro**: Implementação Python nativa sem dependências de JavaScript, Selenium ou n8n
+- ✅ **Compatibilidade Retroativa**: Detecta automaticamente URLs Nextcloud ou tradicionais
+- ✅ **Autenticação Transparente**: Gerencia automaticamente o token de acesso público
+- ✅ **Zero Configuração**: Funciona out-of-the-box com a URL padrão da Receita Federal
+- ✅ **Performance Otimizada**: Requisições HTTP assíncronas com aiohttp
+- ✅ **Retry Automático**: Sistema robusto de recuperação de falhas
+
+### 🚀 Como Funciona
+
+O sistema detecta automaticamente quando uma URL é do Nextcloud e aplica a autenticação apropriada:
+
+```python
+# URL Nextcloud (detectada automaticamente)
+BASE_URL=https://arquivos.receitafederal.gov.br/index.php/s/gn672Ad4CF8N6TK?dir=/Dados/Cadastros/CNPJ
+
+# URL tradicional (ainda suportada)
+BASE_URL=https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/
+```
+
+### ⚡ Uso Transparente
+
+Todos os comandos existentes continuam funcionando sem alterações:
+
+```bash
+# Pipeline completo
+python main.py
+
+# Download específico
+python main.py --step download --remote-folder 2026-01
+
+# Usar via CLI
+cnpj-processor --types empresas estabelecimentos
+```
+
+### 🔧 Funcionalidades Nextcloud
+
+O cliente Nextcloud implementado suporta:
+
+- **Listagem de Diretórios**: Via protocolo WebDAV com PROPFIND
+- **Download de Arquivos**: Com autenticação Basic Auth transparente
+- **Busca de Pastas**: Detecção automática de pastas no formato AAAA-MM
+- **Listagem de ZIPs**: Identificação de todos os arquivos ZIP disponíveis
+- **Verificação de Conectividade**: Testes automáticos de conexão
+
+### 📊 Estrutura Atual do Nextcloud
+
+```folder
+/Dados/Cadastros/CNPJ/
+├── 2026-01/          # Pasta mais recente (6.79 GB, 37 arquivos)
+├── 2025-12/
+├── 2025-11/
+└── ...               # 33 pastas disponíveis desde 2023-05
+```
+
+### 🛡️ Segurança e Confiabilidade
+
+- **Token Público**: Gerenciado automaticamente pelo sistema
+- **Rate Limiting**: Controle de concorrência para respeitar limites do servidor
+- **Recuperação de Falhas**: Retry automático com backoff exponencial
+- **Validação de Integridade**: Verificação de tamanho e tipo de arquivos
+
+### 📚 Documentação Completa
+
+Para detalhes técnicos completos sobre a implementação do suporte Nextcloud:
+
+📖 **[docs/NEXTCLOUD_MIGRATION.md](docs/NEXTCLOUD_MIGRATION.md)** - Documentação técnica detalhada com:
+
+- Arquitetura do cliente WebDAV
+- Detalhes de autenticação
+- Protocolo de comunicação
+- Troubleshooting e soluções
+- Exemplos de código
+- Scripts de teste
+
+### 🧪 Testar a Conexão Nextcloud
+
+```bash
+# Executar testes de integração
+python test/test_nextcloud.py
+
+# Saída esperada:
+# ✅ URL parseada com sucesso!
+# ✅ Conexão com Nextcloud bem-sucedida!
+# ✅ Encontradas 33 pastas
+# ✅ Encontrados 37 arquivos ZIP (6.79 GB)
+# 🎉 O sistema está pronto para baixar arquivos do Nextcloud
+```
+
 ## 🚀 O que há de Novo na Versão 4.0.9
 
 **✨ PROCESSAMENTO AVANÇADO (janeiro 2026):**
