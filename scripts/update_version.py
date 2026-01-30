@@ -17,12 +17,30 @@ Nota: TestPyPI deve ser testado manualmente com:
 """
 
 import argparse
+import json
 import os
 import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
+
+
+def get_pypi_latest_version(package_name='cnpj-processor'):
+    """Obtém a última versão publicada no PyPI."""
+    try:
+        url = f"https://pypi.org/pypi/{package_name}/json"
+        req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode())
+            version = data['info']['version']
+            print(f"📦 Última versão no PyPI: {version}")
+            return version
+    except (URLError, HTTPError, KeyError, json.JSONDecodeError) as e:
+        print(f"⚠️  Não foi possível obter versão do PyPI: {e}")
+        return None
 
 
 def get_git_latest_tag():
@@ -39,7 +57,7 @@ def get_git_latest_tag():
             tag = tag[1:]
         return tag
     except subprocess.CalledProcessError:
-        print("Erro: Não foi possível obter a tag do git")
+        print("⚠️  Não foi possível obter a tag do git")
         return None
 
 
@@ -107,6 +125,40 @@ def update_project_version(version):
     return True
 
 
+def update_pyproject_version(version):
+    """Atualiza o arquivo pyproject.toml com a nova versão."""
+    pyproject_file = Path("pyproject.toml")
+    
+    if not pyproject_file.exists():
+        print(f"Erro: {pyproject_file} não encontrado")
+        return False
+    
+    content = pyproject_file.read_text(encoding='utf-8')
+    pattern = r'version = "[^"]*"'
+    replacement = f'version = "{version}"'
+    new_content = re.sub(pattern, replacement, content, count=1)
+    
+    if new_content == content:
+        print("Aviso: Nenhuma alteração foi feita no pyproject.toml")
+        return False
+    
+    pyproject_file.write_text(new_content, encoding='utf-8')
+    print(f"✅ Versão atualizada para {version} em {pyproject_file}")
+    return True
+
+
+def update_version_file(version):
+    """Atualiza o arquivo VERSION com a nova versão."""
+    version_file = Path("VERSION")
+    
+    if not version_file.exists():
+        print(f"Aviso: {version_file} não encontrado, criando...")
+    
+    version_file.write_text(version, encoding='utf-8')
+    print(f"✅ Versão atualizada para {version} em {version_file}")
+    return True
+
+
 def validate_version(version):
     """Valida se a versão está no formato correto (X.Y.Z)."""
     pattern = r'^\d+\.\d+\.\d+(-[a-zA-Z0-9]+)*$'
@@ -139,20 +191,33 @@ def clean_build():
     print("\n🧹 Limpando builds anteriores...")
     removed = []
     
-    for dir_name in ['build', 'dist']:
+    dirs_to_clean = ['build', 'dist', '__pycache__']
+    for dir_name in dirs_to_clean:
         if os.path.exists(dir_name):
             shutil.rmtree(dir_name)
             removed.append(dir_name)
             print(f"  ✓ Removido: {dir_name}/")
     
+    # Remover egg-info
     for item in Path('.').glob('*.egg-info'):
         if item.is_dir():
             shutil.rmtree(item)
             removed.append(str(item))
             print(f"  ✓ Removido: {item}/")
     
+    # Remover __pycache__ recursivamente
+    for item in Path('.').rglob('__pycache__'):
+        if item.is_dir():
+            try:
+                shutil.rmtree(item)
+                removed.append(str(item))
+            except Exception as e:
+                print(f"  ⚠️  Não foi possível remover {item}: {e}")
+    
     if removed:
         print(f"\n✅ Limpeza concluída: {len(removed)} itens removidos")
+    else:
+        print(f"\n✅ Nenhum arquivo para limpar")
     return True
 
 
@@ -224,6 +289,13 @@ def git_commit_and_tag(version, files_changed):
     print(f"{'='*60}")
     
     try:
+        # Verificar se há mudanças para commitar
+        result = subprocess.run(['git', 'status', '--porcelain'], 
+                              capture_output=True, text=True, check=True)
+        if not result.stdout.strip():
+            print("⚠️  Nenhuma mudança para commitar")
+            return True
+        
         subprocess.run(['git', 'add'] + files_changed, check=True, capture_output=True)
         print(f"✓ Arquivos adicionados: {', '.join(files_changed)}")
         
@@ -232,6 +304,13 @@ def git_commit_and_tag(version, files_changed):
         print(f"✓ Commit criado: {commit_msg}")
         
         tag_name = f"v{version}"
+        # Verificar se a tag já existe
+        tag_check = subprocess.run(['git', 'tag', '-l', tag_name], 
+                                   capture_output=True, text=True)
+        if tag_check.stdout.strip():
+            print(f"⚠️  Tag {tag_name} já existe, removendo...")
+            subprocess.run(['git', 'tag', '-d', tag_name], check=True, capture_output=True)
+        
         subprocess.run(['git', 'tag', tag_name], check=True, capture_output=True)
         print(f"✓ Tag criada: {tag_name}")
         
@@ -280,9 +359,23 @@ Exemplos:
     
     # Determinar versão principal
     if args.auto:
-        base_version = get_git_latest_tag()
-        if not base_version:
-            print("Erro: Não foi possível obter versão do git")
+        # Verificar versão no PyPI primeiro
+        pypi_version = get_pypi_latest_version()
+        git_version = get_git_latest_tag()
+        
+        # Usar a maior versão entre PyPI e Git
+        base_version = None
+        if pypi_version and git_version:
+            base_version = max(pypi_version, git_version, key=lambda v: tuple(map(int, v.split('.'))))
+            print(f"🔄 Git: {git_version}, PyPI: {pypi_version}")
+        elif pypi_version:
+            base_version = pypi_version
+            print(f"🔄 Versão base (PyPI): {base_version}")
+        elif git_version:
+            base_version = git_version
+            print(f"🔄 Versão base (Git): {base_version}")
+        else:
+            print("Erro: Não foi possível obter versão do git ou PyPI")
             sys.exit(1)
         
         version = increment_version(base_version, args.increment)
@@ -290,7 +383,6 @@ Exemplos:
             print(f"Erro: Não foi possível incrementar versão {base_version}")
             sys.exit(1)
         
-        print(f"🔄 Versão anterior: {base_version}")
         print(f"🔄 Nova versão ({args.increment}): {version}\n")
     elif args.version:
         version = args.version
@@ -326,6 +418,16 @@ Exemplos:
         files_changed.append("cnpj_processor/__version__.py")
     else:
         success = False
+    
+    # Atualizar pyproject.toml
+    if update_pyproject_version(api_version):
+        files_changed.append("pyproject.toml")
+    else:
+        success = False
+    
+    # Atualizar VERSION
+    if update_version_file(api_version):
+        files_changed.append("VERSION")
     
     # Atualizar versão do projeto (a menos que seja --api-only)
     if not args.api_only:
