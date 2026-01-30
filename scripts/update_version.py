@@ -20,7 +20,6 @@ import argparse
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -165,121 +164,29 @@ def validate_version(version):
     return re.match(pattern, version) is not None
 
 
-def run_command(cmd, description):
-    """Executa um comando e retorna True se bem-sucedido."""
-    print(f"\n{'='*60}")
-    print(f"▶ {description}")
-    print(f"{'='*60}")
-    print(f"Comando: {' '.join(cmd)}")
-    print()
+def call_build_and_publish():
+    """Chama o script build_and_publish.py para fazer build e upload."""
+    build_script = Path(__file__).parent / 'build_and_publish.py'
     
-    try:
-        subprocess.run(cmd, check=True, capture_output=False, text=True)
-        print(f"\n✅ {description} - SUCESSO")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"\n❌ {description} - FALHOU")
-        print(f"Erro: {e}")
-        return False
-    except FileNotFoundError:
-        print(f"\n❌ Comando não encontrado: {cmd[0]}")
-        return False
-
-
-def clean_build():
-    """Remove diretórios de build anteriores."""
-    print("\n🧹 Limpando builds anteriores...")
-    removed = []
-    
-    dirs_to_clean = ['build', 'dist', '__pycache__']
-    for dir_name in dirs_to_clean:
-        if os.path.exists(dir_name):
-            shutil.rmtree(dir_name)
-            removed.append(dir_name)
-            print(f"  ✓ Removido: {dir_name}/")
-    
-    # Remover egg-info
-    for item in Path('.').glob('*.egg-info'):
-        if item.is_dir():
-            shutil.rmtree(item)
-            removed.append(str(item))
-            print(f"  ✓ Removido: {item}/")
-    
-    # Remover __pycache__ recursivamente
-    for item in Path('.').rglob('__pycache__'):
-        if item.is_dir():
-            try:
-                shutil.rmtree(item)
-                removed.append(str(item))
-            except Exception as e:
-                print(f"  ⚠️  Não foi possível remover {item}: {e}")
-    
-    if removed:
-        print(f"\n✅ Limpeza concluída: {len(removed)} itens removidos")
-    else:
-        print(f"\n✅ Nenhum arquivo para limpar")
-    return True
-
-
-def build_package():
-    """Faz o build do pacote."""
-    return run_command([sys.executable, '-m', 'build'], "Construindo pacote")
-
-
-def check_package():
-    """Verifica o pacote usando twine."""
-    if not os.path.exists('dist'):
-        print("\n❌ Diretório dist/ não encontrado.")
-        return False
-    
-    dist_files = list(Path('dist').glob('*'))
-    if not dist_files:
-        print("\n❌ Nenhum arquivo encontrado em dist/.")
-        return False
-    
-    return run_command([sys.executable, '-m', 'twine', 'check', 'dist/*'], "Verificando pacote")
-
-
-def upload_pypi():
-    """Upload para PyPI (PRODUÇÃO)."""
-    if not os.path.exists('dist'):
-        print("\n❌ Diretório dist/ não encontrado.")
+    if not build_script.exists():
+        print(f"\n❌ Script não encontrado: {build_script}")
         return False
     
     print("\n" + "="*60)
-    print("⚠️  ATENÇÃO: UPLOAD PARA PYPI DE PRODUÇÃO!")
+    print("📦 Chamando build_and_publish.py")
     print("="*60)
-    response = input("Tem certeza que deseja fazer upload para o PyPI de PRODUÇÃO? (sim/não): ")
     
-    if response.lower() not in ['sim', 'yes', 's', 'y']:
-        print("❌ Upload cancelado pelo usuário")
+    try:
+        result = subprocess.run(
+            [sys.executable, str(build_script), '--production', '--force'],
+            check=True,
+            capture_output=False,
+            text=True
+        )
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"\n❌ Falha ao executar build_and_publish.py")
         return False
-    
-    return run_command([sys.executable, '-m', 'twine', 'upload', 'dist/*'], "Upload para PyPI (PRODUÇÃO)")
-
-
-def check_dependencies():
-    """Verifica se as dependências necessárias estão instaladas."""
-    print("\n🔍 Verificando dependências de publicação...")
-    
-    required = {'build': 'build', 'twine': 'twine'}
-    missing = []
-    
-    for package, module in required.items():
-        try:
-            __import__(module)
-            print(f"  ✓ {package} instalado")
-        except ImportError:
-            missing.append(package)
-            print(f"  ✗ {package} NÃO instalado")
-    
-    if missing:
-        print(f"\n❌ Dependências faltando: {', '.join(missing)}")
-        print(f"Instale com: pip install {' '.join(missing)}")
-        return False
-    
-    print("\n✅ Todas as dependências instaladas")
-    return True
 
 
 def git_commit_and_tag(version, files_changed):
@@ -453,20 +360,8 @@ Exemplos:
         print("📦 Iniciando publicação no PyPI")
         print("="*60)
         
-        if not check_dependencies():
-            print("\n⚠️  Versão atualizada e commitada, mas publicação cancelada")
-            print("Instale as dependências e use: python scripts/build_and_publish.py --production")
-            sys.exit(1)
-        
-        # Clean, build, check, upload
-        if not clean_build():
-            sys.exit(1)
-        if not build_package():
-            sys.exit(1)
-        if not check_package():
-            sys.exit(1)
-        if not upload_pypi():
-            print("\n⚠️  Versão atualizada e commitada, mas upload cancelado")
+        if not call_build_and_publish():
+            print("\n⚠️  Versão atualizada e commitada, mas publicação falhou")
             print("Para publicar depois: python scripts/build_and_publish.py --production")
             sys.exit(1)
         
