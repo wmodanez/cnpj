@@ -54,6 +54,13 @@ from .utils.global_circuit_breaker import (
     report_fatal_failure
 )
 
+# Import do cliente Nextcloud
+from .utils.nextcloud_client import (
+    NextcloudPublicClient,
+    parse_nextcloud_url,
+    test_nextcloud_connection
+)
+
 # Carregar variáveis de ambiente do arquivo .env
 load_dotenv()
 
@@ -727,6 +734,87 @@ def _find_links(soup: BeautifulSoup, base_url: str, ends_with: str | None = None
     return found_urls
 
 
+def _get_nextcloud_zip_urls(base_url: str, share_token: str, base_path: str, remote_folder: str | None = None) -> Tuple[List[str], str]:
+    """Busca URLs de arquivos .zip no Nextcloud na pasta AAAA-MM.
+    
+    Args:
+        base_url: URL base do Nextcloud
+        share_token: Token do compartilhamento público
+        base_path: Caminho base inicial
+        remote_folder: Pasta específica (formato AAAA-MM), se None usa a mais recente
+        
+    Returns:
+        Tuple[List[str], str]: Lista de URLs de download e nome da pasta escolhida
+    """
+    import asyncio
+    
+    async def _async_get_nextcloud_urls():
+        try:
+            client = NextcloudPublicClient(base_url, share_token)
+            
+            # Buscar pastas no formato AAAA-MM
+            logger.info(f"Buscando pastas AAAA-MM em {base_path}...")
+            folders = await client.get_folders_by_pattern(base_path, r'\d{4}-\d{2}')
+            
+            if not folders:
+                logger.warning(f"Nenhuma pasta no formato AAAA-MM encontrada em {base_path}")
+                return [], ""
+            
+            # Escolher pasta
+            if remote_folder:
+                if remote_folder in folders:
+                    selected_folder = remote_folder
+                    logger.info(f"Usando pasta especificada: {selected_folder}")
+                else:
+                    logger.warning(f"Pasta '{remote_folder}' não encontrada. Disponíveis: {', '.join(folders[:5])}...")
+                    return [], ""
+            else:
+                # Usar a mais recente (folders já vem ordenado)
+                selected_folder = folders[0]
+                logger.info(f"Usando pasta mais recente: {selected_folder}")
+            
+            # Construir caminho completo da pasta
+            folder_path = f"{base_path.rstrip('/')}/{selected_folder}"
+            
+            # Buscar arquivos ZIP na pasta
+            logger.info(f"Buscando arquivos .zip em {folder_path}...")
+            zip_files = await client.get_zip_files(folder_path)
+            
+            if not zip_files:
+                logger.warning(f"Nenhum arquivo .zip encontrado em {folder_path}")
+                return [], selected_folder
+            
+            # Extrair apenas as URLs (zip_files é lista de tuplas (url, size))
+            zip_urls = [url for url, _ in zip_files]
+            
+            logger.info(f"Total de {len(zip_urls)} URLs .zip encontradas na pasta {selected_folder}")
+            return zip_urls, selected_folder
+            
+        except Exception as e:
+            logger.error(f"Erro ao buscar arquivos do Nextcloud: {e}")
+            return [], ""
+    
+    # Executar função assíncrona de forma síncrona
+    try:
+        # Tentar obter o loop existente
+        try:
+            loop = asyncio.get_running_loop()
+            # Estamos em um contexto assíncrono - não podemos usar run_until_complete
+            # Neste caso, chamar diretamente a versão assíncrona
+            logger.warning("get_latest_month_zip_urls chamado de contexto assíncrono. Use await get_latest_month_zip_urls_async().")
+            # Criar nova thread para executar o código assíncrono
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, _async_get_nextcloud_urls())
+                return future.result()
+        except RuntimeError:
+            # Não há loop em execução - podemos usar asyncio.run
+            return asyncio.run(_async_get_nextcloud_urls())
+    except Exception as e:
+        logger.error(f"Erro ao executar operação assíncrona: {e}")
+        return [], ""
+
+
 def _filter_urls_by_type(urls: List[str], tipos: Tuple[str, ...]) -> Tuple[List[str], int]:
     """Filtra uma lista de URLs, mantendo apenas aquelas cujo nome de arquivo começa com um dos tipos fornecidos."""
     filtered_urls = []
@@ -765,20 +853,26 @@ def _filter_urls_by_type(urls: List[str], tipos: Tuple[str, ...]) -> Tuple[List[
 
 def get_latest_month_zip_urls(base_url: str, remote_folder: str | None = None) -> Tuple[List[str], str]:
     """Busca URLs de arquivos .zip na pasta AAAA-MM mais recente ou na pasta especificada.
-
-    1. Busca e parseia a URL base.
-    2. Encontra links de diretórios.
-    3. Filtra diretórios no formato AAAA-MM e encontra o mais recente ou usa o especificado.
-    4. Busca e parseia a URL do diretório escolhido.
-    5. Encontra links .zip nesse diretório.
     
+    Suporta tanto URLs tradicionais (HTTP direto) quanto Nextcloud (WebDAV).
+
     Args:
-        base_url: URL base para buscar diretórios
+        base_url: URL base para buscar diretórios (pode ser URL tradicional ou Nextcloud)
         remote_folder: Pasta específica a ser usada (formato AAAA-MM), se None usa a mais recente
 
     Returns:
         Tuple[List[str], str]: Lista de URLs e nome da pasta escolhida
     """
+    # Detectar se é URL do Nextcloud
+    parsed_base, parsed_token, parsed_path = parse_nextcloud_url(base_url)
+    
+    if parsed_base and parsed_token:
+        # É uma URL do Nextcloud - usar cliente WebDAV
+        logger.info(f"Detectado Nextcloud. Base: {parsed_base}, Token: {parsed_token}")
+        return _get_nextcloud_zip_urls(parsed_base, parsed_token, parsed_path, remote_folder)
+    
+    # Método tradicional (HTTP direto)
+    logger.info("Usando método tradicional de listagem HTTP")
     zip_urls = []
     folder_url = None
     year_month_folders = []
@@ -843,6 +937,8 @@ def get_latest_month_zip_urls(base_url: str, remote_folder: str | None = None) -
 async def get_remote_folders(base_url: str) -> List[str]:
     """Busca todas as pastas remotas disponíveis no formato AAAA-MM.
     
+    Suporta tanto URLs tradicionais quanto Nextcloud.
+    
     Args:
         base_url: URL base para buscar diretórios
         
@@ -850,6 +946,24 @@ async def get_remote_folders(base_url: str) -> List[str]:
         List[str]: Lista de nomes de pastas no formato AAAA-MM, ordenadas da mais recente para a mais antiga
     """
     logger.info(f"Buscando todas as pastas remotas em: {base_url}")
+    
+    # Detectar se é URL do Nextcloud
+    parsed_base, parsed_token, parsed_path = parse_nextcloud_url(base_url)
+    
+    if parsed_base and parsed_token:
+        # É uma URL do Nextcloud
+        logger.info("Detectado Nextcloud - usando API WebDAV")
+        try:
+            client = NextcloudPublicClient(parsed_base, parsed_token)
+            folders = await client.get_folders_by_pattern(parsed_path, r'\d{4}-\d{2}')
+            logger.info(f"Encontradas {len(folders)} pastas remotas: {', '.join(folders[:5])}{'...' if len(folders) > 5 else ''}")
+            return folders
+        except Exception as e:
+            logger.error(f"Erro ao buscar pastas do Nextcloud: {e}")
+            return []
+    
+    # Método tradicional
+    logger.info("Usando método tradicional de listagem HTTP")
     
     # Buscar e parsear a URL base
     base_soup = _fetch_and_parse(base_url)
@@ -883,6 +997,8 @@ async def get_remote_folders(base_url: str) -> List[str]:
 async def get_latest_remote_folder(base_url: str) -> str | None:
     """Busca a pasta remota mais recente (último mês disponível).
     
+    Suporta tanto URLs tradicionais quanto Nextcloud.
+    
     Args:
         base_url: URL base para buscar diretórios
         
@@ -914,8 +1030,10 @@ async def get_file_sizes_and_sort(urls: List[str]) -> List[Tuple[str, int]]:
     async with aiohttp.ClientSession() as session:
         for url in urls:
             try:
+                # Detectar se precisa autenticação
+                auth = _get_auth_for_url(url)
                 # Obter apenas o tamanho do arquivo
-                remote_size, _ = await get_remote_file_metadata(session, url)
+                remote_size, _ = await get_remote_file_metadata(session, url, auth)
                 if remote_size:
                     url_sizes.append((url, remote_size))
                 else:
@@ -929,6 +1047,26 @@ async def get_file_sizes_and_sort(urls: List[str]) -> List[Tuple[str, int]]:
     # Ordenar por tamanho (menor primeiro)
     url_sizes.sort(key=lambda x: x[1])
     return url_sizes
+
+
+def _get_auth_for_url(url: str) -> aiohttp.BasicAuth | None:
+    """
+    Detecta automaticamente se uma URL precisa de autenticação Nextcloud.
+    
+    Args:
+        url: URL para verificar
+        
+    Returns:
+        aiohttp.BasicAuth se necessário, None caso contrário
+    """
+    if 'public.php/webdav' in url:
+        # URL do Nextcloud - extrair token do BASE_URL
+        base_url_env = os.getenv('BASE_URL', '')
+        if base_url_env:
+            _, token, _ = parse_nextcloud_url(base_url_env)
+            if token:
+                return aiohttp.BasicAuth(login=token, password='')
+    return None
 
 
 async def _process_download_response(response: aiohttp.ClientResponse, destination_path: str, file_mode: str,
@@ -1102,7 +1240,7 @@ async def _process_download_response(response: aiohttp.ClientResponse, destinati
 
 
 async def download_file(session: aiohttp.ClientSession | None, url: str, destination_path: str, semaphore: asyncio.Semaphore,
-                        progress: Progress, task_id: int, force_download: bool = False) -> Tuple[str, Exception | None, str | None]:
+                        progress: Progress, task_id: int, force_download: bool = False, auth: aiohttp.BasicAuth | None = None) -> Tuple[str, Exception | None, str | None]:
     """
     Baixa um arquivo de uma URL para um caminho de destino com retry robusto e recuperação inteligente.
     
@@ -1114,6 +1252,7 @@ async def download_file(session: aiohttp.ClientSession | None, url: str, destina
         progress: Objeto Progress para atualizar progresso
         task_id: ID da tarefa de progresso
         force_download: Se True, força o download mesmo se o arquivo já existir
+        auth: Autenticação opcional (aiohttp.BasicAuth) para URLs que precisam de autenticação
         
     Returns:
         Tupla com (caminho_do_arquivo, erro, motivo_skip)
@@ -1137,7 +1276,7 @@ async def download_file(session: aiohttp.ClientSession | None, url: str, destina
                 local_size = os.path.getsize(destination_path)
                 
                 # Obter metadados remotos para comparação
-                remote_size, remote_last_modified = await get_remote_file_metadata(session, url)
+                remote_size, remote_last_modified = await get_remote_file_metadata(session, url, auth)
                 
                 if remote_size and local_size == remote_size:
                     # Validação adicional de integridade
@@ -1149,7 +1288,7 @@ async def download_file(session: aiohttp.ClientSession | None, url: str, destina
                         force_download = True
             
             # Obter metadados do arquivo remoto com retry
-            remote_size, remote_last_modified = await get_remote_file_metadata(session, url)
+            remote_size, remote_last_modified = await get_remote_file_metadata(session, url, auth)
             if remote_size is None:
                 error_msg = f"Não foi possível obter metadados remotos para {url}"
                 if attempt < max_retries:
@@ -1215,7 +1354,7 @@ async def download_file(session: aiohttp.ClientSession | None, url: str, destina
             logger.info(f"Iniciando download de {filename} (tentativa {attempt + 1}/{max_retries + 1}, {initial_size} bytes já baixados)")
             
             try:
-                async with session.get(url, headers=headers, timeout=timeout) as response:
+                async with session.get(url, headers=headers, timeout=timeout, auth=auth) as response:
                     # Verificar status da resposta
                     if response.status == 416:  # Range Not Satisfiable
                         logger.warning(f"Servidor não suporta resumo para {filename}. Fazendo download completo.")
@@ -1223,7 +1362,7 @@ async def download_file(session: aiohttp.ClientSession | None, url: str, destina
                         file_mode = "wb"
                         headers.pop('Range', None)
                         
-                        async with session.get(url, headers=headers, timeout=timeout) as response:
+                        async with session.get(url, headers=headers, timeout=timeout, auth=auth) as response:
                             response.raise_for_status()
                             result_path, error = await _process_download_response(
                                 response, destination_path, file_mode, progress, task_id, 
@@ -1362,8 +1501,17 @@ async def _server_supports_range_requests(session: aiohttp.ClientSession, url: s
         return False
 
 
-async def get_remote_file_metadata(session: aiohttp.ClientSession, url: str) -> Tuple[int | None, int | None]:
-    """Obtém tamanho e timestamp de modificação de um arquivo remoto via HEAD request com retry robusto."""
+async def get_remote_file_metadata(session: aiohttp.ClientSession, url: str, auth: aiohttp.BasicAuth | None = None) -> Tuple[int | None, int | None]:
+    """Obtém tamanho e timestamp de modificação de um arquivo remoto via HEAD request com retry robusto.
+    
+    Args:
+        session: Sessão HTTP
+        url: URL do arquivo
+        auth: Autenticação opcional (aiohttp.BasicAuth)
+        
+    Returns:
+        Tupla (tamanho_bytes, timestamp_modificação)
+    """
     max_retries = 3
     retry_delay = 2
     
@@ -1375,7 +1523,7 @@ async def get_remote_file_metadata(session: aiohttp.ClientSession, url: str) -> 
                 'Accept': '*/*'
             }
             
-            async with session.head(url, timeout=timeout, allow_redirects=True, headers=headers) as response:
+            async with session.head(url, timeout=timeout, allow_redirects=True, headers=headers, auth=auth) as response:
                 response.raise_for_status()
                 
                 # Obter tamanho do arquivo
@@ -1926,6 +2074,9 @@ async def download_multiple_files(
         # Criar task específica no objeto Progress do rich
         task_id = progress.add_task(f"[cyan]{filename}", filename=filename, total=100)
         
+        # Detectar autenticação automaticamente
+        auth = _get_auth_for_url(url)
+        
         try:
             async with download_semaphore:
                 # Usar sessão HTTP compartilhada
@@ -1942,7 +2093,7 @@ async def download_multiple_files(
                     # Usar o objeto Progress do rich
                     result_filename, error, status = await download_file(
                         session, url, destination_path, download_semaphore, 
-                        progress, task_id, force_download_param
+                        progress, task_id, force_download_param, auth
                     )
                     elapsed_time = time.time() - start_time
                     
@@ -2291,6 +2442,9 @@ async def _attempt_recovery_downloads(
         filename = os.path.basename(url)
         destination_path = os.path.join(path_zip, filename)
         
+        # Detectar autenticação
+        auth = _get_auth_for_url(url)
+        
         try:
             # Usar configurações mais conservadoras
             async with aiohttp.ClientSession(
@@ -2302,7 +2456,7 @@ async def _attempt_recovery_downloads(
                 
                 result_filename, error, status = await download_file(
                     session, url, destination_path, recovery_semaphore, 
-                    progress, task_id, force_download
+                    progress, task_id, force_download, auth
                 )
                 
                 if error:
@@ -2544,6 +2698,9 @@ async def download_only_files(
         # Criar task específica no objeto Progress do rich
         task_id = progress.add_task(f"[cyan]{filename}", filename=filename, total=100)
         
+        # Detectar autenticação automaticamente
+        auth = _get_auth_for_url(url)
+        
         try:
             async with download_semaphore:
                 # Usar sessão HTTP compartilhada
@@ -2560,7 +2717,7 @@ async def download_only_files(
                     # Usar o objeto Progress do rich
                     result_filename, error, status = await download_file(
                         session, url, destination_path, download_semaphore, 
-                        progress, task_id, force_download_param
+                        progress, task_id, force_download_param, auth
                     )
                     elapsed_time = time.time() - start_time
                     

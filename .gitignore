@@ -45,6 +45,7 @@ unzip/
 parquet/
 !parquet/base/
 benchmark_temp/
+.env
 .env.local
 *.duckdb
 .ipynb_checkpoints/

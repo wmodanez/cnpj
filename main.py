@@ -434,7 +434,7 @@ async def async_main():
     # Argumentos padrão
     loc = get_localization()
     
-    parser.add_argument('--types', '-t', nargs='+', choices=['empresas', 'estabelecimentos', 'simples', 'socios'],
+    parser.add_argument('--types', '-t', nargs='+', dest='tipos', choices=['empresas', 'estabelecimentos', 'simples', 'socios'],
                          default=[], help='Tipos de dados a serem processados. Se não especificado, processa todos (relevante para steps \'process\' e \'all\').')
     parser.add_argument('--step', '-s', choices=['download', 'extract', 'csv', 'process', 'database', 'painel', 'all'], default='all',
                          help='Etapa a ser executada. Padrão: all')
@@ -973,7 +973,7 @@ async def async_main():
 
         if db_success:
             print_success(f"Banco de dados criado com sucesso em {format_elapsed_time(db_time)}")
-            if args.cleanup_after_db or args.cleanup_all_after_db:
+            if args.cleanup_after_db:
                 cleanup_success = cleanup_after_database(output_parquet_path, "", True, False)
                 if not cleanup_success:
                     print_warning("Falha ao limpar arquivos parquet.")

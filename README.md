@@ -93,7 +93,7 @@ python main.py --step process --source-zip-folder dados-abertos-zip/2026-01 --ou
   - `python scripts/release.py --minor`: Incrementa versão minor (3.2.0 → 3.3.0)
   - `python scripts/release.py --major`: Incrementa versão major (3.2.0 → 4.0.0)
   - `python scripts/release.py 3.5.0`: Cria versão específica
-- ✅ **Documentação especializada**: Guia completo em `VERSIONAMENTO.md`
+- ✅ **Documentação especializada**: Guia completo em `[VERSIONAMENTO](docs/GUIA_VERSIONAMENTO.md)`
 
 **🔥 REVOLUÇÃO NO PIPELINE - Pipeline Otimizado de Processamento Imediato (versões anteriores):**
 
@@ -312,8 +312,8 @@ python main.py --keep-artifacts --create-database --keep-parquet-after-db
 
 ### 🆕 Novos Argumentos de Controle
 
-| Argumento | Atalho | Descrição  |
-|-----------|--------|------------|
+| Argumento | Atalho | Descrição |
+| ----------- | -------- | ------------ |
 | `--keep-artifacts` | `-k` | Manter ZIPs e arquivos temporários |
 | `--create-database` | `-D` | Criar banco DuckDB (opcional) |
 | `--cleanup-after-db` | `-c` | Remover parquets após criar banco |
@@ -397,7 +397,7 @@ python main.py -a -f 2023-01 -q -d
 
 Para referência completa de todos os atalhos e exemplos práticos, consulte:
 
-📖 **[ATALHOS.md](ATALHOS.md)** - Guia completo consolidado com:
+📖 **[ATALHOS](docs/ATALHOS.md)** - Guia completo consolidado com:
 
 - Referência rápida dos top 10 atalhos
 - Tabelas completas de todos os argumentos
@@ -450,7 +450,7 @@ python -c "from src.__version__ import get_version; print('Versão:', get_versio
 
 ### 📚 Documentação Completa de Versionamento
 
-- **[VERSIONAMENTO.md](VERSIONAMENTO.md)**: Guia completo do sistema de versionamento
+- **[VERSIONAMENTO](docs/GUIA_VERSIONAMENTO.md)**: Guia completo do sistema de versionamento
 
 ### Execução
 

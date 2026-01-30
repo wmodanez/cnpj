@@ -1,4 +1,5 @@
 beautifulsoup4==4.12.3
+lxml>=4.9.0
 duckdb>=0.10.0
 python-dotenv==1.0.1
 aiohttp[speedups]>=3.9.5

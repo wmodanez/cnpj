@@ -17,8 +17,10 @@ PATH_PARQUET=parquet/
 FILE_DB_PARQUET=cnpj.duckdb
 PATH_REMOTE_PARQUET=destino/
 
-# URL base para download dos arquivos
-BASE_URL=https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/
+# URL base para download dos arquivos - Nextcloud da Receita Federal
+# Formato: https://domain/index.php/s/{TOKEN}?dir={PATH}
+# O código detecta automaticamente se é Nextcloud e extrai o token
+BASE_URL=https://arquivos.receitafederal.gov.br/index.php/s/gn672Ad4CF8N6TK?dir=/Dados/Cadastros/CNPJ
 
 # Configurações de cache
 CACHE_ENABLED=true
@@ -74,7 +76,7 @@ def get_default_env_vars() -> dict:
         'PATH_PARQUET': 'parquet/',
         'FILE_DB_PARQUET': 'cnpj.duckdb',
         'PATH_REMOTE_PARQUET': 'destino/',
-        'BASE_URL': 'https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/',
+        'BASE_URL': 'https://arquivos.receitafederal.gov.br/index.php/s/gn672Ad4CF8N6TK?dir=/Dados/Cadastros/CNPJ',
         'CACHE_ENABLED': 'true',
         'CACHE_PATH': 'cache/'
     }
