@@ -8,7 +8,7 @@ import subprocess
 import os
 
 __title__ = "Sistema de Processamento de Dados CNPJ"
-__version_fallback__ = "4.2.0"
+__version_fallback__ = "4.2.1"
 
 def get_git_version():
     """
