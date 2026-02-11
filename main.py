@@ -814,7 +814,15 @@ async def async_main():
                 logger.info(f"📂 Processando tipo: {tipo} ({len(zip_files_tipo)} arquivos)")
                 
                 # Determinar a chave do tipo para o processador
-                tipo_key = tipo.rstrip('s')  # Remove 's' final para obter chave do processador
+                # Mapeamento correto: empresas → empresa, estabelecimentos → estabelecimento, 
+                # simples → simples, socios → socio
+                tipo_key_map = {
+                    'empresas': 'empresa',
+                    'estabelecimentos': 'estabelecimento',
+                    'simples': 'simples',
+                    'socios': 'socio'
+                }
+                tipo_key = tipo_key_map.get(tipo, tipo.rstrip('s'))
                 
                 # Processar cada arquivo ZIP deste tipo
                 for zip_file in zip_files_tipo:
