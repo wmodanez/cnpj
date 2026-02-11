@@ -128,8 +128,7 @@ from cnpj_processor import (
     get_remote_folders, 
     get_latest_remote_folder,
     _filter_urls_by_type,
-    download_only_files,
-    get_network_test_results
+    download_only_files
 )
 from cnpj_processor import config
 from cnpj_processor import create_duckdb_file
@@ -213,8 +212,18 @@ def setup_logging(log_level_str: str):
     # Determinar pasta raiz do projeto (onde está o main.py)
     project_root = os.path.dirname(os.path.abspath(__file__))
     logs_dir = os.path.join(project_root, 'logs')
-    if not os.path.exists(logs_dir):
-        os.makedirs(logs_dir)
+    
+    # Criar pasta de logs se não existir
+    try:
+        if not os.path.exists(logs_dir):
+            os.makedirs(logs_dir, exist_ok=True)
+            print(f"[setup_logging] Pasta de logs criada: {logs_dir}")
+    except Exception as e:
+        print(f"[setup_logging] AVISO: Não foi possível criar pasta de logs: {e}")
+        # Usar diretório atual como fallback
+        logs_dir = os.path.join(os.getcwd(), 'logs')
+        os.makedirs(logs_dir, exist_ok=True)
+        print(f"[setup_logging] Usando pasta alternativa: {logs_dir}")
 
     log_filename = os.path.join(logs_dir, f'cnpj_process_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
     log_format = '%(asctime)s - %(levelname)s - %(message)s'
@@ -942,6 +951,7 @@ async def async_main():
             unzip_path=PATH_UNZIP,
             output_parquet_path=output_parquet_path,
             tipos_a_processar=tipos_a_processar,
+            base_url=base_url,
             delete_zips_after_extract=False,  # Já foi extraído
             force_download=False  # Já foi baixado
         )
@@ -1079,6 +1089,7 @@ async def async_main():
             unzip_path=PATH_UNZIP,
             output_parquet_path=output_parquet_path,
             tipos_a_processar=tipos_a_processar,
+            base_url=base_url,
             delete_zips_after_extract=delete_artifacts,
             force_download=args.force_download,
             **processing_options
@@ -1390,6 +1401,7 @@ async def optimized_download_and_process_pipeline(
     unzip_path: str, 
     output_parquet_path: str,
     tipos_a_processar: List[str],
+    base_url: str,
     delete_zips_after_extract: bool = False,
     force_download: bool = False,
     **processing_options
@@ -1457,17 +1469,9 @@ async def optimized_download_and_process_pipeline(
     
     logger.info(f"📊 Total de processadores criados: {len(processors)}")
     
-    # Obter configurações de rede
-    try:
-        network_results = await get_network_test_results()
-        max_concurrent_downloads = min(6, network_results.get("recommendations", {}).get("max_concurrent_downloads", 3))
-        connection_quality = network_results.get("quality", {}).get("connection_quality", "unknown")
-    except Exception as e:
-        logger.warning(f"Erro ao obter configurações de rede: {e}")
-        max_concurrent_downloads = 3
-        connection_quality = "unknown"
+    # Usar configurações padrão de rede (teste foi removido para melhorar performance)
+    max_concurrent_downloads = 3
     
-    logger.info(f"🌐 Rede: {connection_quality}")
     logger.info(f"🔧 Downloads simultâneos: {max_concurrent_downloads}")
     
     # Configurar semáforos
@@ -1553,8 +1557,13 @@ async def optimized_download_and_process_pipeline(
     # Função para verificar/baixar e processar imediatamente
     async def download_and_process_immediately(url: str, session: aiohttp.ClientSession):
         """Baixa/verifica um arquivo e o processa imediatamente."""
+        from src.async_downloader import _get_auth_for_url
+        
         filename = os.path.basename(url)
         destination_path = os.path.join(source_zip_path, filename)
+        
+        # Obter autenticação necessária para esta URL
+        auth = _get_auth_for_url(url)
         
         try:
             async with download_semaphore:
@@ -1569,25 +1578,17 @@ async def optimized_download_and_process_pipeline(
                         await process_file_immediately(destination_path, filename)
                         return
                     else:
-                        logger.error(f"❌ Arquivo {filename} baixado mas falhou na validação de integridade")
-                        failed_downloads.append((filename, "Falha na validação de integridade"))
+                        logger.warning(f"⚠️ Arquivo {filename} existe mas está corrompido. Fazendo novo download...")
                         # Remover arquivo corrompido
                         try:
                             os.remove(destination_path)
-                        except Exception:
-                            pass
-                else:
-                    logger.warning(f"⚠️ Arquivo {filename} existe mas está corrompido. Fazendo novo download...")
-                    # Remover arquivo corrompido
-                    try:
-                        os.remove(destination_path)
-                    except Exception as e:
-                        logger.warning(f"Erro ao remover arquivo corrompido {filename}: {e}")
+                        except Exception as e:
+                            logger.warning(f"Erro ao remover arquivo corrompido {filename}: {e}")
                 
-                # Fazer download
+                # Fazer download com autenticação apropriada
                 logger.info(f"📥 Baixando {filename}...")
                 try:
-                    async with session.get(url) as response:
+                    async with session.get(url, auth=auth) as response:
                         if response.status == 200:
                             with open(destination_path, 'wb') as f:
                                 async for chunk in response.content.iter_chunked(8192):
@@ -1669,6 +1670,9 @@ async def optimized_download_and_process_pipeline(
     
     # Executar downloads e processamentos em paralelo
     start_time = time.time()
+    
+    # Nota: A autenticação NextCloud é gerenciada automaticamente pelo async_downloader.py
+    # através da função _get_auth_for_url() que detecta e configura a autenticação para cada URL
     
     async with aiohttp.ClientSession(
         timeout=aiohttp.ClientTimeout(total=3600, connect=30),

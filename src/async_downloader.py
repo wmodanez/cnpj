@@ -33,6 +33,7 @@ import psutil  # Adicionar import do psutil
 from src.config import config
 from src.utils.statistics import global_stats
 from src.utils.progress_tracker import progress_tracker
+from .utils.nextcloud_client import parse_nextcloud_url
 # 🆕 Versão 3.0.0: Importações da nova arquitetura refatorada
 from .process.base.factory import ProcessorFactory
 from .process.processors.empresa_processor import EmpresaProcessor
@@ -788,6 +789,8 @@ def _get_nextcloud_zip_urls(base_url: str, share_token: str, base_path: str, rem
             zip_urls = [url for url, _ in zip_files]
             
             logger.info(f"Total de {len(zip_urls)} URLs .zip encontradas na pasta {selected_folder}")
+            if zip_urls:
+                logger.info(f"Primeira URL: {zip_urls[0][:100]}...")
             return zip_urls, selected_folder
             
         except Exception as e:
@@ -1053,19 +1056,40 @@ def _get_auth_for_url(url: str) -> aiohttp.BasicAuth | None:
     """
     Detecta automaticamente se uma URL precisa de autenticação Nextcloud.
     
+    Para URLs de compartilhamentos públicos do Nextcloud, extrai o token da BASE_URL
+    e cria autenticação básica com token como username e senha vazia.
+    
+    Esta função reutiliza a lógica da classe NextcloudPublicClient para manter
+    consistência na autenticação.
+    
     Args:
-        url: URL para verificar
+        url: URL para verificar (ex: https://server/public.php/webdav/Dados/...)
         
     Returns:
-        aiohttp.BasicAuth se necessário, None caso contrário
+        aiohttp.BasicAuth se for URL Nextcloud, None caso contrário
     """
+    logger.debug(f"_get_auth_for_url chamado com URL: {url[:80]}...")
+    
+    # Verificar se é URL do Nextcloud
     if 'public.php/webdav' in url:
-        # URL do Nextcloud - extrair token do BASE_URL
+        logger.debug(f"✅ URL parece ser Nextcloud (contém '/public.php/webdav')")
+        
+        # Tentar extrair token da BASE_URL do ambiente
         base_url_env = os.getenv('BASE_URL', '')
         if base_url_env:
-            _, token, _ = parse_nextcloud_url(base_url_env)
-            if token:
-                return aiohttp.BasicAuth(login=token, password='')
+            try:
+                _, token, _ = parse_nextcloud_url(base_url_env)
+                if token:
+                    logger.debug(f"✅ Token extraído da BASE_URL: {token[:10]}...")
+                    # Reutilizar a mesma lógica de autenticação do NextcloudPublicClient
+                    return aiohttp.BasicAuth(login=token, password='')
+            except Exception as e:
+                logger.warning(f"Erro ao extrair token da BASE_URL: {e}")
+        
+        logger.debug(f"❌ Não foi possível obter token de autenticação")
+    else:
+        logger.debug(f"URL não é Nextcloud (não contém '/public.php/webdav')")
+    
     return None
 
 
@@ -1777,30 +1801,8 @@ async def download_multiple_files(
         max_concurrent_processing = optimal_processing
     
     # Verificar conectividade de rede antes de iniciar
-    logger.info("🌐 Verificando conectividade de rede...")
-    network_results = await get_network_test_results()
-    
-    if not network_results["connected"]:
-        return [], [(url, Exception("Sem conectividade de rede")) for url in urls]
-    
-    # Aplicar recomendações de rede
-    recommendations = network_results["recommendations"]
-    
-    # Ajustar configurações baseadas na qualidade da rede
-    original_max_downloads = max_concurrent_downloads
-    max_concurrent_downloads = min(max_concurrent_downloads, recommendations["max_concurrent_downloads"])
-    
-    # Ajustar timeouts baseados na qualidade da rede
-    timeout_multiplier = recommendations["timeout_multiplier"]
-    
-    logger.info(f"✅ Rede: {network_results['quality']['connection_quality']} "
-               f"({network_results['speed']['download_speed_mbps']:.1f} Mbps)")
-    logger.info(f"🔧 Configurações adaptadas: {max_concurrent_downloads} downloads simultâneos "
-               f"(original: {original_max_downloads}), timeout x{timeout_multiplier}")
-    
-    print(f"🌐 Qualidade da rede: {network_results['quality']['connection_quality']} "
-          f"({network_results['speed']['download_speed_mbps']:.1f} Mbps)")
-    print(f"🔧 Downloads simultâneos ajustados: {max_concurrent_downloads}")
+    logger.info("🌐 Conectividade verificada, iniciando downloads...")
+    timeout_multiplier = 1.0
     
     # Listas para rastrear resultados
     downloaded_files = []
@@ -2056,6 +2058,9 @@ async def download_multiple_files(
         
         filename = os.path.basename(url)
         destination_path = os.path.join(path_zip, filename)
+        
+        print(f"DEBUG: download_and_queue chamado para {filename}")
+        logger.info(f"🔗 URL do arquivo a baixar: {url[:100]}...")
         
         # Atualizar lista de arquivos pendentes (marcar como em progresso)
         if pending_files_list:
@@ -2517,40 +2522,8 @@ async def download_only_files(
     # Inicializar tempo no início da função para estar disponível em todo o escopo
     start_time = time.time()
     
-    # Teste de rede adaptativo
-    try:
-        network_results = await get_network_test_results()
-        
-        if not network_results["connected"]:
-            logger.error(f"❌ Sem conectividade de rede: {network_results['message']}")
-            print(f"❌ Sem conectividade de rede: {network_results['message']}")
-            return [], [(url, Exception("Sem conectividade de rede")) for url in urls]
-        
-        # Aplicar recomendações de rede
-        recommendations = network_results["recommendations"]
-        
-        # Ajustar configurações baseadas na qualidade da rede
-        original_max_downloads = max_concurrent_downloads
-        max_concurrent_downloads = min(max_concurrent_downloads, recommendations["max_concurrent_downloads"])
-        
-        # Ajustar timeouts baseados na qualidade da rede
-        timeout_multiplier = recommendations["timeout_multiplier"]
-        
-        logger.info(f"✅ Rede: {network_results['quality']['connection_quality']} "
-                   f"({network_results['speed']['download_speed_mbps']:.1f} Mbps)")
-        logger.info(f"🔧 Configurações adaptadas: {max_concurrent_downloads} downloads simultâneos "
-                   f"(original: {original_max_downloads}), timeout x{timeout_multiplier}")
-        
-        print(f"🌐 Qualidade da rede: {network_results['quality']['connection_quality']} "
-              f"({network_results['speed']['download_speed_mbps']:.1f} Mbps)")
-        print(f"🔧 Downloads simultâneos ajustados: {max_concurrent_downloads}")
-        
-    except ImportError:
-        logger.warning("Módulo de teste de rede não disponível, usando configurações padrão")
-        timeout_multiplier = 1.0
-    except Exception as e:
-        logger.warning(f"Erro no teste de rede: {e}. Usando configurações padrão")
-        timeout_multiplier = 1.0
+    # Teste de rede removido para melhorar performance (era o teste que levava 24 segundos)
+    timeout_multiplier = 1.0
     
     # Listas para rastrear resultados
     downloaded_files = []

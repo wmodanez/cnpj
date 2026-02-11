@@ -3,6 +3,14 @@ Cliente para interagir com Nextcloud público via WebDAV.
 
 Este módulo fornece funções para acessar compartilhamentos públicos do Nextcloud
 sem necessidade de JavaScript ou Selenium, usando apenas a API WebDAV.
+
+RESPONSABILIDADES:
+- Descobrir pastas e arquivos remotos disponíveis (listagem via WebDAV)
+- Gerar URLs de download corretas
+- Fornecer lógica centralizada de autenticação para Nextcloud público
+
+A autenticação para downloads é reutilizada por async_downloader._get_auth_for_url()
+para manter consistência.
 """
 
 import logging
@@ -29,15 +37,19 @@ class NextcloudPublicClient:
         """
         self.base_url = base_url.rstrip('/')
         self.share_token = share_token
+        # Para compartilhamentos públicos do Nextcloud
+        # URL WebDAV: /public.php/webdav/ (SEM o token no path)
+        # Token vai na autenticação básica: username=token, password=vazio
         self.webdav_url = f"{self.base_url}/public.php/webdav"
         
-        # Headers de autenticação para compartilhamento público
-        # Username é o token, senha vazia
+        # Autenticação básica para compartilhamento público do Nextcloud
+        # Username = token do compartilhamento, password = vazio
         self.auth = aiohttp.BasicAuth(login=share_token, password='')
-        self.requests_auth = (share_token, '')  # Para requests síncrono
+        self.requests_auth = (share_token, '')
         
         logger.info(f"Cliente Nextcloud inicializado: {self.base_url}")
-        logger.debug(f"Token: {self.share_token}")
+        logger.debug(f"WebDAV URL: {self.webdav_url}")
+        logger.debug(f"Token para autenticação: {self.share_token[:10]}...")
     
     def _get_propfind_body(self) -> str:
         """Retorna o corpo XML para requisições PROPFIND."""
@@ -89,6 +101,7 @@ class NextcloudPublicClient:
         
         try:
             async with aiohttp.ClientSession() as session:
+                logger.debug(f"Fazendo requisição PROPFIND para: {url}")
                 async with session.request(
                     'PROPFIND',
                     url,
@@ -97,20 +110,25 @@ class NextcloudPublicClient:
                     data=self._get_propfind_body(),
                     timeout=aiohttp.ClientTimeout(total=30)
                 ) as response:
+                    logger.debug(f"Status da resposta WebDAV: {response.status}")
                     if response.status == 207:  # Multi-Status (sucesso WebDAV)
                         xml_content = await response.text()
                         return self._parse_propfind_response(xml_content, path)
                     elif response.status == 401:
-                        logger.error(f"Autenticação falhou. Verifique o token: {self.share_token}")
+                        logger.error(f"❌ Autenticação falhou (HTTP 401). URL: {url}")
+                        logger.error(f"❌ Verifique se o token está correto: {self.share_token}")
                         return []
                     elif response.status == 404:
-                        logger.error(f"Diretório não encontrado: {path}")
+                        logger.error(f"❌ Diretório não encontrado: {path}")
                         return []
                     else:
-                        logger.error(f"Erro ao listar diretório {path}: HTTP {response.status}")
+                        logger.error(f"❌ Erro ao listar diretório {path}: HTTP {response.status}")
+                        logger.debug(f"   Resposta: {await response.text()}")
                         return []
         except Exception as e:
-            logger.error(f"Erro ao acessar Nextcloud em {path}: {e}")
+            logger.error(f"❌ Erro ao acessar Nextcloud em {path}: {e}")
+            import traceback
+            logger.debug(f"   Traceback: {traceback.format_exc()}")
             return []
     
     def _parse_propfind_response(self, xml_content: str, base_path: str) -> List[dict]:
@@ -127,7 +145,15 @@ class NextcloudPublicClient:
         items = []
         
         try:
-            soup = BeautifulSoup(xml_content, 'xml')
+            # Tentar primeiro lxml, se não funcionar, usar html.parser como fallback
+            try:
+                soup = BeautifulSoup(xml_content, 'lxml-xml')
+            except:
+                try:
+                    soup = BeautifulSoup(xml_content, 'xml')
+                except:
+                    soup = BeautifulSoup(xml_content, 'html.parser')
+            
             responses = soup.find_all('d:response')
             
             for response in responses:

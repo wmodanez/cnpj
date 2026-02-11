@@ -54,8 +54,7 @@ from src.async_downloader import (
     get_remote_folders,
     get_latest_remote_folder,
     _filter_urls_by_type,
-    download_only_files,
-    get_network_test_results
+    download_only_files
 )
 
 # Importar funções e utilitários adicionais
@@ -319,7 +318,6 @@ __all__ = [
     'get_latest_remote_folder',
     '_filter_urls_by_type',
     'download_only_files',
-    'get_network_test_results',
     
     # Database
     'create_duckdb_file',
