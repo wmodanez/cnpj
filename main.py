@@ -31,6 +31,7 @@ Cada step é composto pelos anteriores:
 6. Download + extração + geração de CSVs normalizados:
    python main.py --step csv
    python main.py --step csv --output-csv-folder meus_csvs
+   python main.py --step csv --export-csv-base  # Exportar base de dados processada para CSV também
 
 7. Download + extração + processamento (gera parquets):
    python main.py --step process --output-subfolder processados
@@ -72,6 +73,7 @@ PARÂMETROS PRINCIPAIS:
 - --remote-folder: Pasta remota específica (AAAA-MM)
 - --output-subfolder: Subpasta de saída para parquets
 - --output-csv-folder: Pasta de saída para CSVs normalizados (step csv)
+- --export-csv-base: Exportar base de dados em CSV (step csv)
 - --force-download: Forçar re-download
 - --delete-zips-after-extract: Remover ZIPs após extração
 - --create-database: Criar DuckDB após processamento
@@ -209,9 +211,8 @@ def check_disk_space() -> bool:
 
 def setup_logging(log_level_str: str):
     """Configura o sistema de logging com base no nível fornecido."""
-    # Determinar pasta raiz do projeto (onde está o main.py)
-    project_root = os.path.dirname(os.path.abspath(__file__))
-    logs_dir = os.path.join(project_root, 'logs')
+    # Usar o diretório onde o comando está sendo executado (CWD)
+    logs_dir = os.path.join(os.getcwd(), 'logs')
     
     # Criar pasta de logs se não existir
     try:
@@ -220,10 +221,9 @@ def setup_logging(log_level_str: str):
             print(f"[setup_logging] Pasta de logs criada: {logs_dir}")
     except Exception as e:
         print(f"[setup_logging] AVISO: Não foi possível criar pasta de logs: {e}")
-        # Usar diretório atual como fallback
-        logs_dir = os.path.join(os.getcwd(), 'logs')
-        os.makedirs(logs_dir, exist_ok=True)
-        print(f"[setup_logging] Usando pasta alternativa: {logs_dir}")
+        # Usar diretório atual como fallback absoluto
+        logs_dir = os.getcwd()
+        print(f"[setup_logging] Salvando log diretamente em: {logs_dir}")
 
     log_filename = os.path.join(logs_dir, f'cnpj_process_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
     log_format = '%(asctime)s - %(levelname)s - %(message)s'
@@ -416,6 +416,22 @@ def main():
 
 async def async_main():
     """Função principal assíncrona de execução."""
+    try:
+        return await _async_main_impl()
+    except Exception as e:
+        # Garantir que erros não capturados sejam sempre registrados no log
+        import traceback
+        # Usar logger se já configurado, senão usar logging básico
+        _logger = logging.getLogger(__name__)
+        _logger.critical(f"❌ ERRO CRÍTICO NÃO CAPTURADO: {type(e).__name__}: {e}")
+        _logger.critical(traceback.format_exc())
+        print(f"❌ ERRO CRÍTICO: {type(e).__name__}: {e}", file=sys.stderr)
+        print(traceback.format_exc(), file=sys.stderr)
+        return False, ""
+
+
+async def _async_main_impl():
+    """Implementação real da função principal assíncrona."""
     global overall_success
     overall_success = True
     
@@ -469,6 +485,10 @@ async def async_main():
                          help='Nome da subpasta onde salvar os arquivos parquet. Use "." para pasta raiz')
     parser.add_argument('--output-csv-folder', type=str,
                          help='Pasta onde salvar CSVs normalizados (padrão: dados-abertos). Para step csv')
+    parser.add_argument('--export-csv-base', action='store_true',
+                         help='Exportar também a base de dados processada em formato CSV (para step csv)')
+    parser.add_argument('--export-parquet-base', action='store_true',
+                         help='Copiar os arquivos parquet base da API (cnae, motivo, municipio, etc.) para a pasta de saída dos parquets (para steps process e all)')
     parser.add_argument('--source-zip-folder', '-z', type=str,
                          help='Pasta de origem dos arquivos ZIP (para step \'process\')')
     parser.add_argument('--process-all-folders', '-p', action='store_true',
@@ -499,8 +519,6 @@ async def async_main():
                          help='Filtrar painel por situação cadastral (1=Nula, 2=Ativa, 3=Suspensa, 4=Inapta, 8=Baixada)')
     parser.add_argument('--panel-include-inactive', action='store_true',
                          help='Incluir estabelecimentos inativos no painel')
-    parser.add_argument('--normalize-csv', action='store_true',
-                         help='Gerar arquivos CSV normalizados (com as mesmas regras de padronização dos parquets)')
     parser.add_argument('--show-latest-folder', '--latest', action='store_true',
                          help='Exibir a pasta remota mais recente disponível e sair')
     parser.add_argument('--version', '-V', action='store_true',
@@ -760,15 +778,15 @@ async def async_main():
             logger.error("Falha ao obter arquivos para geração de CSVs.")
             return False, ""
         
-        # 2. Definir pasta de saída
-        output_folder = args.output_csv_folder or args.output_subfolder
-        if output_folder:
-            output_base_path = output_folder if os.path.isabs(output_folder) else os.path.abspath(output_folder)
+        # 2. Definir pasta de saída dos CSVs normalizados
+        output_csv_folder = args.output_csv_folder or args.output_subfolder
+        if output_csv_folder:
+            output_csv_path = output_csv_folder if os.path.isabs(output_csv_folder) else os.path.abspath(output_csv_folder)
         else:
-            output_base_path = os.path.abspath(os.path.join(project_root, 'dados-abertos'))
+            output_csv_path = os.path.abspath(os.path.join(project_root, 'dados-abertos'))
         
-        os.makedirs(output_base_path, exist_ok=True)
-        logger.info(f"Salvando CSVs normalizados em: {output_base_path}")
+        os.makedirs(output_csv_path, exist_ok=True)
+        logger.info(f"Salvando CSVs normalizados em: {output_csv_path}")
         
         # 3. Executar geração de CSVs normalizados
         print_section("2.5.2: Gerando CSVs normalizados")
@@ -808,14 +826,12 @@ async def async_main():
                     continue
                 
                 # Criar pasta específica para este tipo
-                tipo_output_path = os.path.join(output_base_path, tipo)
-                os.makedirs(tipo_output_path, exist_ok=True)
+                tipo_csv_output_path = os.path.join(output_csv_path, tipo)
+                os.makedirs(tipo_csv_output_path, exist_ok=True)
                 
                 logger.info(f"📂 Processando tipo: {tipo} ({len(zip_files_tipo)} arquivos)")
                 
                 # Determinar a chave do tipo para o processador
-                # Mapeamento correto: empresas → empresa, estabelecimentos → estabelecimento, 
-                # simples → simples, socios → socio
                 tipo_key_map = {
                     'empresas': 'empresa',
                     'estabelecimentos': 'estabelecimento',
@@ -827,7 +843,6 @@ async def async_main():
                 # Processar cada arquivo ZIP deste tipo
                 for zip_file in zip_files_tipo:
                     zip_path = os.path.join(source_zip_path, zip_file)
-                    zip_prefix = os.path.splitext(zip_file)[0]
                     
                     logger.info(f"📦 Processando {zip_file}")
                     
@@ -836,7 +851,7 @@ async def async_main():
                         tipo_key,
                         source_zip_path,
                         PATH_UNZIP,
-                        tipo_output_path,
+                        tipo_csv_output_path,
                         delete_zips_after_extract=False
                     )
                     
@@ -862,10 +877,9 @@ async def async_main():
                                         df = processor.apply_entity_transformations(df)
                                         
                                         # Salvar como CSV normalizado
-                                        output_file = os.path.join(tipo_output_path, file_name)
-                                        df.write_csv(output_file, separator=';')
-                                        
-                                        logger.info(f"  ✅ {file_name} normalizado: {df.height} linhas")
+                                        output_csv_file = os.path.join(tipo_csv_output_path, file_name)
+                                        df.write_csv(output_csv_file, separator=';')
+                                        logger.info(f"  ✅ {file_name} normalizado (CSV): {df.height} linhas")
                                         total_files_processed += 1
                                     else:
                                         logger.warning(f"  ⚠️ {file_name} não pôde ser processado")
@@ -883,9 +897,90 @@ async def async_main():
             
             normalize_time = time.time() - normalize_start_time
             
-            print_success(f"Geração de CSVs concluída em {format_elapsed_time(normalize_time)}")
-            logger.info(f"✅ {total_files_processed} arquivos CSV normalizados gerados com sucesso")
-            logger.info(f"📁 CSVs normalizados em: {output_base_path}")
+            # Montar resumo da execução
+            summary_lines = [
+                f"Geração de CSVs concluída em {format_elapsed_time(normalize_time)}",
+                f"✅ {total_files_processed} arquivos CSV normalizados gerados com sucesso"
+            ]
+            
+            summary_lines.append(f"📁 CSVs normalizados em: {output_csv_path}")
+            
+            # Se --export-csv-base: exportar parquets base existentes para CSV
+            if args.export_csv_base:
+                print_section("2.5.3: Exportando base de dados para CSV")
+                logger.info("🔄 Iniciando exportação de parquets base para CSV...")
+                
+                # A pasta 'parquet/base' faz parte da API e fica no diretório raiz do projeto (cnpj_processor)
+                # Independente de onde o comando é executado (ex: subpasta temp/)
+                api_root = os.path.dirname(os.path.abspath(__file__))
+                base_parquet_path = os.path.join(api_root, 'parquet', 'base')
+                
+                logger.info(f"📦 Pasta de parquets base da API: {base_parquet_path}")
+                
+                if not os.path.exists(base_parquet_path):
+                    logger.warning(f"❌ Pasta de parquets base não encontrada: {base_parquet_path}")
+                    logger.warning("Verifique se o pacote cnpj_processor foi instalado corretamente")
+                else:
+                    # Criar pasta de saída para CSVs da base
+                    csv_base_output_path = os.path.join(output_csv_path, 'base')
+                    os.makedirs(csv_base_output_path, exist_ok=True)
+                    logger.info(f"📁 Pasta de saída para CSVs base: {csv_base_output_path}")
+                    
+                    total_csv_exported = 0
+                    
+                    try:
+                        import polars as pl
+                        
+                        # Os arquivos base ficam diretamente em parquet/base/ (sem subpastas por tipo)
+                        parquet_files = [f for f in os.listdir(base_parquet_path) if f.endswith('.parquet')]
+                        
+                        if not parquet_files:
+                            logger.warning(f"⚠️  Nenhum arquivo .parquet encontrado em: {base_parquet_path}")
+                        else:
+                            logger.info(f"📊 {len(parquet_files)} arquivo(s) parquet base encontrados")
+                            
+                            for parquet_file in parquet_files:
+                                parquet_file_path = os.path.join(base_parquet_path, parquet_file)
+                                
+                                try:
+                                    df = pl.read_parquet(parquet_file_path)
+                                    
+                                    csv_file_name = parquet_file.replace('.parquet', '.csv')
+                                    csv_file_path = os.path.join(csv_base_output_path, csv_file_name)
+                                    df.write_csv(csv_file_path, separator=';')
+                                    
+                                    file_size_mb = os.path.getsize(csv_file_path) / (1024 * 1024)
+                                    logger.info(f"  ✅ {parquet_file} → {csv_file_name}")
+                                    logger.info(f"     Linhas: {df.height:,} | Tamanho: {file_size_mb:.2f}MB")
+                                    logger.info(f"     Salvo em: {csv_file_path}")
+                                    total_csv_exported += 1
+                                except Exception as e:
+                                    logger.error(f"  ❌ Erro ao exportar {parquet_file}: {e}")
+                                    import traceback
+                                    logger.debug(traceback.format_exc())
+                        
+                        # Resumo da exportação
+                        if total_csv_exported > 0:
+                            summary_lines.append(f"✅ {total_csv_exported} arquivos base convertidos para CSV")
+                            summary_lines.append(f"📁 CSVs base salvos em: {csv_base_output_path}")
+                            logger.info("=" * 60)
+                            logger.info("RESUMO DA EXPORTAÇÃO BASE → CSV:")
+                            logger.info(f"  ✅ Total convertidos: {total_csv_exported} de {len(parquet_files)} arquivos")
+                            logger.info(f"  📁 Destino: {csv_base_output_path}")
+                            logger.info("=" * 60)
+                        else:
+                            logger.warning("⚠️  Nenhum arquivo base foi convertido")
+                    
+                    except Exception as e:
+                        logger.error(f"❌ Erro ao exportar base de dados para CSV: {e}")
+                        import traceback
+                        logger.debug(traceback.format_exc())
+                        summary_lines.append(f"❌ Erro ao exportar base para CSV: {str(e)}")
+            
+            print_success(" | ".join(summary_lines))
+            
+            for line in summary_lines:
+                logger.info(line)
             
             total_time = time.time() - start_time
             logger.info("=" * 50)
@@ -952,6 +1047,8 @@ async def async_main():
             logger.warning("Nenhum arquivo correspondente aos tipos especificados.")
             return True, args.output_subfolder
 
+        base_url = os.getenv('BASE_URL', '')
+
         process_start_time = time.time()
         process_results = await optimized_download_and_process_pipeline(
             urls=urls_para_processar,
@@ -967,6 +1064,9 @@ async def async_main():
 
         if process_results.get('all_ok', False):
             print_success(f"Processamento concluído em {format_elapsed_time(process_time)}")
+            if args.export_parquet_base:
+                print_section("3.4: Copiando arquivos parquet base")
+                copy_parquet_base(output_parquet_path)
             return True, args.output_subfolder
         else:
             print_error("Falha durante processamento.")
@@ -1156,6 +1256,11 @@ async def async_main():
             return False, ""
         else:
             print_success("Verificação de integridade dos parquets concluída com sucesso.")
+
+        # Copiar arquivos base se solicitado
+        if args.export_parquet_base:
+            print_section("Copiando arquivos parquet base da API")
+            copy_parquet_base(output_parquet_path)
         
         # 2.4. Limpeza de pastas de trabalho
         if args.delete_zips_after_extract:
@@ -1286,6 +1391,52 @@ async def async_main():
     global_stats.print_detailed_report()
         
     return overall_success, remote_folder
+
+def copy_parquet_base(output_parquet_path: str) -> bool:
+    """
+    Copia os arquivos parquet base da API para a pasta de saída.
+    Os arquivos base (cnae, motivo, municipio, etc.) ficam em parquet/base/
+    na raiz do projeto e são necessários para o processamento do painel.
+
+    Args:
+        output_parquet_path: Pasta de destino dos parquets processados
+
+    Returns:
+        bool: True se ao menos um arquivo foi copiado com sucesso
+    """
+    import shutil
+
+    api_root = os.path.dirname(os.path.abspath(__file__))
+    src_base = os.path.join(api_root, 'parquet', 'base')
+    dst_base = os.path.join(output_parquet_path, 'base')
+
+    if not os.path.exists(src_base):
+        logger.warning(f"⚠️  Pasta de parquets base não encontrada: {src_base}")
+        return False
+
+    parquet_files = [f for f in os.listdir(src_base) if f.endswith('.parquet')]
+    if not parquet_files:
+        logger.warning(f"⚠️  Nenhum arquivo .parquet encontrado em: {src_base}")
+        return False
+
+    os.makedirs(dst_base, exist_ok=True)
+    logger.info(f"📦 Copiando {len(parquet_files)} arquivo(s) parquet base para: {dst_base}")
+
+    copied = 0
+    for fname in parquet_files:
+        src_file = os.path.join(src_base, fname)
+        dst_file = os.path.join(dst_base, fname)
+        try:
+            shutil.copy2(src_file, dst_file)
+            size_kb = os.path.getsize(dst_file) / 1024
+            logger.info(f"  ✅ {fname} copiado ({size_kb:.1f}KB) → {dst_file}")
+            copied += 1
+        except Exception as e:
+            logger.error(f"  ❌ Erro ao copiar {fname}: {e}")
+
+    logger.info(f"✅ {copied}/{len(parquet_files)} arquivos base copiados para: {dst_base}")
+    return copied > 0
+
 
 def process_painel_complete(source_zip_path: str, unzip_path: str, output_parquet_path: str, 
                           uf_filter: str | None = None, situacao_filter: int | None = None, 
@@ -1419,16 +1570,19 @@ async def optimized_download_and_process_pipeline(
     """
     from src.async_downloader import _filter_urls_by_type
     
-    # ✅ CORREÇÃO 1: Filtrar URLs antes de processar para evitar baixar arquivos auxiliares
-    logger.info("🔍 Filtrando URLs por tipos desejados...")
-    filtered_urls, ignored_count = _filter_urls_by_type(urls, tuple(tipos_a_processar))
+    # Filtrar URLs apenas se forem URLs remotas (http/https)
+    # Caminhos locais já vêm pré-filtrados pelo step que chamou o pipeline
+    are_remote_urls = any(u.startswith('http://') or u.startswith('https://') for u in urls[:1])
     
-    if ignored_count > 0:
-        logger.info(f"📊 Filtrados {ignored_count} arquivos auxiliares (Cnaes, Motivos, etc.)")
+    if are_remote_urls:
+        logger.info("🔍 Filtrando URLs remotas por tipos desejados...")
+        filtered_urls, ignored_count = _filter_urls_by_type(urls, tuple(tipos_a_processar))
+        if ignored_count > 0:
+            logger.info(f"📊 Filtrados {ignored_count} arquivos auxiliares (Cnaes, Motivos, etc.)")
         logger.info(f"🎯 URLs válidos para processamento: {len(filtered_urls)}")
-    
-    # Usar URLs filtrados em vez dos URLs originais
-    urls = filtered_urls
+        urls = filtered_urls
+    else:
+        logger.info(f"🎯 Processando {len(urls)} arquivo(s) local(is) pré-filtrado(s)")
     
     # Controlar concorrência
     max_concurrent_downloads = 3  # Baseado no teste de rede

@@ -553,6 +553,55 @@ class BaseProcessor(ABC):
             self.logger.error(f"Erro ao salvar Parquet: {str(e)}")
             return False
     
+    def export_to_csv(
+        self,
+        df: pl.DataFrame,
+        output_path: str,
+        zip_prefix: str,
+        delimiter: str = ';'
+    ) -> bool:
+        """
+        Exporta DataFrame como CSV.
+        
+        Args:
+            df: DataFrame a ser salvo
+            output_path: Caminho de saída base
+            zip_prefix: Prefixo do arquivo CSV
+            delimiter: Delimitador para o CSV (padrão: ';')
+            
+        Returns:
+            bool: True se exportação foi bem-sucedida, False caso contrário
+        """
+        try:
+            if not isinstance(df, pl.DataFrame):
+                self.logger.error("Objeto passado não é um DataFrame válido")
+                return False
+                
+            if df.is_empty():
+                self.logger.warning("DataFrame vazio, não salvando arquivo CSV")
+                return False
+            
+            # Criar subpasta por tipo de entidade
+            entity_folder = self.get_processor_name().lower()
+            organized_output_path = os.path.join(output_path, entity_folder)
+            
+            # Garantir que o diretório existe
+            os.makedirs(organized_output_path, exist_ok=True)
+            
+            self.logger.info(f"Exportando CSV para: {organized_output_path}")
+            
+            # Salvar como arquivo CSV único
+            filename = f"{zip_prefix}.csv"
+            file_path = os.path.join(organized_output_path, filename)
+            
+            df.write_csv(file_path, separator=delimiter)
+            self.logger.info(f"Arquivo CSV exportado: {entity_folder}/{filename} ({df.height} linhas)")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Erro ao exportar CSV: {str(e)}")
+            return False
+    
     # Interface pública para processamento
     
     def add_file_to_queue(self, zip_file: str, priority: int = 1, **extra_options) -> None:

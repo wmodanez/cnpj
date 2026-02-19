@@ -819,11 +819,13 @@ def _get_nextcloud_zip_urls(base_url: str, share_token: str, base_path: str, rem
 
 
 def _filter_urls_by_type(urls: List[str], tipos: Tuple[str, ...]) -> Tuple[List[str], int]:
-    """Filtra uma lista de URLs, mantendo apenas aquelas cujo nome de arquivo começa com um dos tipos fornecidos."""
+    """Filtra uma lista de URLs ou caminhos locais, mantendo apenas aquelas cujo nome de arquivo começa com um dos tipos fornecidos."""
+    import os as _os
     filtered_urls = []
     ignored_count = 0
     for url in urls:
-        filename = url.split('/')[-1]
+        # Usar os.path.basename para suportar caminhos locais Windows (\\) e URLs (/)
+        filename = _os.path.basename(url.replace('\\', '/'))
         filename_lower = filename.lower()
         
         # Primeiro verificar se o arquivo está na lista de ignorados
