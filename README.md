@@ -1,8 +1,8 @@
 # Processador de Dados CNPJ 🏢
 
-> **🆕 Versão 4.0.9** - Processamento Otimizado + Descompactação Independente + Padronização Automática de Colunas
+> **🆕 Versão 4.3.0** - Exportação de CSV Base + Parquets Base + Step CSV Aprimorado
 >
-> A partir da versão **4.0.9**, o sistema agora oferece **descompactação independente** com `--step extract` e **padronização automática de nomes de colunas CSV** como padrão no processamento. Estas funcionalidades complementam o pipeline existente, permitindo maior flexibilidade no fluxo de trabalho e garantindo que todos os arquivos CSV sejam automaticamente padronizados com os nomes de colunas esperados.
+> A partir da versão **4.3.0**, o sistema oferece **exportação completa de dados base** com `--export-csv-base` e `--export-parquet-base`, além de **step CSV totalmente reformulado** para geração de CSVs normalizados sem processamento de parquets. Pipeline otimizado agora suporta caminhos locais do Windows corretamente e garante que todos os erros sejam registrados em log.
 
 Este projeto automatiza o download, processamento e armazenamento dos dados públicos de CNPJ disponibilizados pela Receita Federal. Ele foi desenvolvido para ser eficiente, resiliente, modular e fácil de usar.
 
@@ -119,37 +119,67 @@ python test/test_nextcloud.py
 # 🎉 O sistema está pronto para baixar arquivos do Nextcloud
 ```
 
-## 🚀 O que há de Novo na Versão 4.0.9
+## 🚀 O que há de Novo na Versão 4.3.0
+
+**🎯 EXPORTAÇÃO E CSV APRIMORADOS (fevereiro 2026):**
+
+- ✅ **Step CSV Reformulado**: Geração de CSVs normalizados sem processar parquets
+  - Apenas normaliza CSVs dos ZIPs baixados (padrão)
+  - Não cria parquets durante a normalização
+  - Pipeline mais limpo e focado
+  - Comando: `python main.py --step csv --types empresas`
+
+- ✅ **Exportação de CSV Base**: Novo `--export-csv-base` converte parquets base da API
+  - Exporta tabelas de referência (cnae, motivo, municipio, etc.)
+  - Arquivos base em `cnpj_processor/parquet/base/` → CSVs estruturados
+  - Logs detalhados: linhas, tamanho, local exato de cada arquivo
+  - Comando: `python main.py --step csv --export-csv-base`
+
+- ✅ **Exportação de Parquet Base**: Novo `--export-parquet-base` copia arquivos base
+  - Copia parquets de referência da API para pasta de saída
+  - Necessário para processamento do painel em diferentes locais
+  - Logs completos de cada arquivo copiado
+  - Comando: `python main.py --step process --export-parquet-base`
+
+- ✅ **Correções Críticas de Pipeline**:
+  - Corrigido filtro de URLs para suportar caminhos Windows (`\` vs `/`)
+  - Filtro duplo removido no step `process` (URLs locais já pré-filtradas)
+  - Variável `base_url` definida corretamente em todos os steps
+  - Wrapper de exceções para garantir que erros sejam sempre logados
+
+**Workflow Exemplo Versão 4.3.0:**
+
+```bash
+# Gerar apenas CSVs normalizados
+python main.py --step csv --types simples
+
+# Gerar CSVs normalizados + exportar tabelas base para CSV
+python main.py --step csv --export-csv-base
+
+# Processar parquets + copiar arquivos base da API
+python main.py --step process --types empresas --output-subfolder 2026-01 --export-parquet-base
+
+# Pipeline completo com arquivos base
+python main.py --step all --export-parquet-base
+```
+
+---
+
+## 🚀 O que Havia de Novo na Versão 4.2.2
+
+**Versão atual estável** (tag git: v4.2.2)
+
+Para detalhes das versões anteriores, consulte o histórico de commits e tags do git.
+
+---
+
+## 🚀 O que Havia de Novo na Versão 4.0.9
 
 **✨ PROCESSAMENTO AVANÇADO (janeiro 2026):**
 
-- ✅ **Descompactação Independente**: Novo `--step extract` para apenas descompactar ZIPs sem processar
-  - Útil para análise manual de dados
-  - Flexibilidade no fluxo de trabalho
-  - Comando: `python main.py --step extract --source-zip-folder dados-abertos-zip/2026-01`
-  
-- ✅ **Padronização Automática de Colunas**: Renomeação automática de colunas CSV para formato esperado
-  - Acontece automaticamente durante processamento normal
-  - Garante compatibilidade com schema esperado
-  - Sem necessidade de etapa adicional separada
-  - Colunas genéricas (column_1, column_2, etc.) → nomes padronizados automaticamente
-
-- ✅ **Maior Flexibilidade**: Novo workflow com 3 etapas independentes:
-  1. Download - `--step download`
-  2. Descompactação - `--step extract`
-  3. Processamento - `--step process`
-
-**Workflow Exemplo Versão 4.0.9:**
-
-```bash
-# Opção 1: Pipeline tradicional (tudo junto)
-python main.py
-
-# Opção 2: Etapa por etapa
-python main.py --step download --remote-folder 2026-01
-python main.py --step extract --source-zip-folder dados-abertos-zip/2026-01
-python main.py --step process --source-zip-folder dados-abertos-zip/2026-01 --output-subfolder processados
-```
+- ✅ **Descompactação Independente**: `--step extract` para apenas descompactar ZIPs sem processar
+- ✅ **Padronização Automática de Colunas**: Renomeação automática de colunas CSV
+- ✅ **Maior Flexibilidade**: Workflow com 3 etapas independentes (download → extract → process)
 
 ---
 

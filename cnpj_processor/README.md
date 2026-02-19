@@ -53,6 +53,15 @@ cnpj-processor
 # Download apenas
 cnpj-processor --step download --types empresas estabelecimentos
 
+# Gerar CSVs normalizados (sem processar parquets)
+cnpj-processor --step csv --types simples
+
+# Exportar tabelas base da API para CSV
+cnpj-processor --step csv --export-csv-base
+
+# Processar com cópia de arquivos base da API
+cnpj-processor --step process --types empresas --export-parquet-base
+
 # Processar painel consolidado por UF
 cnpj-processor --step painel --painel-uf GO --painel-situacao 2
 ```
@@ -153,15 +162,18 @@ processor.run(
 | Parâmetro | Tipo | Descrição |
 | --------- | ---- | --------- |
 | `step` | str | Etapa: 'download', 'extract', 'csv', 'process', 'database', 'painel', 'all' |
-| `type` | list | Tipos a processar: ['empresas', 'estabelecimentos', 'simples', 'socios'] |
+| `tipos` | list | Tipos a processar: ['empresas', 'estabelecimentos', 'simples', 'socios'] |
 | `remote_folder` | str | Pasta remota (formato AAAA-MM) |
 | `output_subfolder` | str | Subpasta de saída |
+| `output_csv_folder` | str | Pasta de saída para CSVs normalizados (step csv) |
 | `source_zip_folder` | str | Pasta de origem dos ZIPs (para extract/process) |
 | `force_download` | bool | Forçar re-download |
 | `keep_artifacts` | bool | Manter ZIPs e arquivos temporários (padrão: False) |
 | `create_database` | bool | Criar banco DuckDB (padrão: False) |
 | `cleanup_after_db` | bool | Remover parquets após criar banco |
 | `keep_parquet_after_db` | bool | Manter parquets após criar banco |
+| `export_csv_base` | bool | **NOVO**: Exportar tabelas base da API para CSV (step csv) |
+| `export_parquet_base` | bool | **NOVO**: Copiar arquivos parquet base para pasta de saída (steps process/all) |
 | `processar_painel` | bool | Processar painel consolidado |
 | `painel_uf` | str | Filtrar painel por UF |
 | `painel_situacao` | int | Filtrar por situação (1=Nula, 2=Ativa, 3=Suspensa, 4=Inapta, 8=Baixada) |
@@ -255,7 +267,55 @@ for pasta in pastas:
     print(f"{'✅' if success else '❌'} {pasta}")
 ```
 
-### Exemplo 6: Descompactação de ZIPs
+### Exemplo 6: Geração e Exportação de CSVs
+
+```python
+# Gerar apenas CSVs normalizados (sem processar parquets)
+processor = CNPJProcessor()
+success, folder = processor.run(
+    step='csv',
+    tipos=['socios'],
+    output_csv_folder='csvs_normalizados'
+)
+
+# Gerar CSVs normalizados + exportar tabelas base da API para CSV
+success, folder = processor.run(
+    step='csv',
+    export_csv_base=True  # Exporta cnae, motivo, municipio, etc.
+)
+
+# Os CSVs base são exportados de cnpj_processor/parquet/base/
+# para a pasta de saída especificada (padrão: dados-abertos/base/)
+
+# Útil quando você:
+# - Quer CSVs com nomes de colunas padronizados
+# - Precisa das tabelas de referência em formato CSV
+# - Prefere trabalhar com CSVs ao invés de parquets
+# - Usa ferramentas externas que aceitam apenas CSV
+```
+
+### Exemplo 7: Processar com Arquivos Base da API
+
+```python
+# Processar dados + copiar arquivos base da API
+processor = CNPJProcessor()
+success, folder = processor.run(
+    step='process',
+    tipos=['empresas'],
+    output_subfolder='2026-01',
+    export_parquet_base=True  # Copia parquets base para o destino
+)
+
+# Os arquivos base (cnae, motivo, municipio, natureza_juridica, qualificacao_socios)
+# são copiados de cnpj_processor/parquet/base/ para output_subfolder/base/
+
+# Necessário quando:
+# - Processar painel em diferentes localizações
+# - Ter todos os dados de referência junto com os dados processados
+# - Deploy independente com todos os arquivos necessários
+```
+
+### Exemplo 8: Descompactação de ZIPs
 
 ```python
 # Apenas descompactar arquivos ZIP (sem processar)
@@ -284,7 +344,7 @@ success, folder = processor.run(
 # de configuração adicional!
 ```
 
-### Exemplo 7: Subset Especializado
+### Exemplo 9: Subset Especializado
 
 ```python
 # Apenas empresas privadas
@@ -305,7 +365,7 @@ success, folder = processor.run(
 )
 ```
 
-### Exemplo 8: Estratégias de Espaço em Disco
+### Exemplo 10: Estratégias de Espaço em Disco
 
 ```python
 processor = CNPJProcessor()
@@ -351,8 +411,14 @@ cnpj-processor --step extract --source-zip-folder dados-abertos-zip/2026-01
 # Gerar CSVs normalizados
 cnpj-processor --step csv --types socios --output-csv-folder csvs_normalizados
 
+# Exportar tabelas base da API para CSV
+cnpj-processor --step csv --export-csv-base
+
 # Processar dados já descompactados
 cnpj-processor --step process --source-zip-folder dados-abertos-zip/2026-01 --output-subfolder processados
+
+# Processar com cópia de arquivos base
+cnpj-processor --step process --types empresas --export-parquet-base
 
 # Processar apenas estabelecimentos
 cnpj-processor --types estabelecimentos
@@ -392,6 +458,14 @@ cnpj-processor -s extract -z dados-abertos-zip/2026-01
 # Gerar CSVs normalizados com atalhos
 cnpj-processor --step csv --types socios
 cnpj-processor -s csv -t socios
+
+# Exportar base para CSV com atalho
+cnpj-processor --step csv --export-csv-base
+cnpj-processor -s csv --export-csv-base
+
+# Processar com arquivos base
+cnpj-processor --step process --export-parquet-base
+cnpj-processor -s process --export-parquet-base
 
 # Criar banco com economia de espaço
 cnpj-processor --create-database --cleanup-after-db --quiet
