@@ -342,7 +342,16 @@ async def ensure_files_downloaded(
     os.makedirs(source_zip_path, exist_ok=True)
     
     # Verificar arquivos locais
-    zip_files = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')] if os.path.exists(source_zip_path) else []
+    zip_files_local = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')] if os.path.exists(source_zip_path) else []
+    
+    # Filtrar arquivos locais por tipos se especificado
+    if hasattr(args, 'tipos') and args.tipos:
+        # Mapear tipos para prefixos de arquivo
+        tipo_map = {'empresas': 'Empre', 'estabelecimentos': 'Estabele', 'simples': 'Simples', 'socios': 'Socio'}
+        prefixos = [tipo_map.get(tipo) for tipo in args.tipos if tipo_map.get(tipo)]
+        zip_files = [f for f in zip_files_local if any(f.startswith(p) for p in prefixos)]
+    else:
+        zip_files = zip_files_local
     
     # Obter URLs remotas
     base_url = os.getenv('BASE_URL')
@@ -358,7 +367,7 @@ async def ensure_files_downloaded(
     else:
         remote_zip_urls_filtered = remote_zip_urls
     
-    logger.info(f"Arquivos remotos: {len(remote_zip_urls_filtered)}, Arquivos locais: {len(zip_files)}")
+    logger.info(f"Arquivos remotos ({', '.join(args.tipos) if hasattr(args, 'tipos') and args.tipos else 'todos'}): {len(remote_zip_urls_filtered)}, Arquivos locais: {len(zip_files)}")
     
     # Decidir se precisa fazer download
     force_download = hasattr(args, 'force_download') and args.force_download
@@ -387,8 +396,14 @@ async def ensure_files_downloaded(
         else:
             logger.warning(f"⚠️ Download com {len(failed_downloads)} falhas em {download_time:.2f}s")
         
-        # Atualizar lista de ZIPs
-        zip_files = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')]
+        # Atualizar lista de ZIPs filtrada por tipo
+        zip_files_local = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')]
+        if hasattr(args, 'tipos') and args.tipos:
+            tipo_map = {'empresas': 'Empre', 'estabelecimentos': 'Estabele', 'simples': 'Simples', 'socios': 'Socio'}
+            prefixos = [tipo_map.get(tipo) for tipo in args.tipos if tipo_map.get(tipo)]
+            zip_files = [f for f in zip_files_local if any(f.startswith(p) for p in prefixos)]
+        else:
+            zip_files = zip_files_local
     else:
         logger.info(f"Usando {len(zip_files)} arquivo(s) ZIP local(is) existentes")
     

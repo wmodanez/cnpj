@@ -13,6 +13,7 @@ A autenticação para downloads é reutilizada por async_downloader._get_auth_fo
 para manter consistência.
 """
 
+import asyncio
 import logging
 import re
 from typing import List, Tuple, Optional
@@ -108,7 +109,7 @@ class NextcloudPublicClient:
                     auth=self.auth,
                     headers=headers,
                     data=self._get_propfind_body(),
-                    timeout=aiohttp.ClientTimeout(total=30)
+                    timeout=aiohttp.ClientTimeout(total=120, connect=30)
                 ) as response:
                     logger.debug(f"Status da resposta WebDAV: {response.status}")
                     if response.status == 207:  # Multi-Status (sucesso WebDAV)
@@ -125,6 +126,10 @@ class NextcloudPublicClient:
                         logger.error(f"❌ Erro ao listar diretório {path}: HTTP {response.status}")
                         logger.debug(f"   Resposta: {await response.text()}")
                         return []
+        except asyncio.TimeoutError as e:
+            logger.error(f"❌ Timeout ao acessar Nextcloud em {path} (limite: 120s)")
+            logger.error(f"   Verifique sua conexão de rede ou tente novamente")
+            return []
         except Exception as e:
             logger.error(f"❌ Erro ao acessar Nextcloud em {path}: {e}")
             import traceback
