@@ -910,12 +910,22 @@ async def _async_main_impl():
                 print_section("2.5.3: Exportando base de dados para CSV")
                 logger.info("🔄 Iniciando exportação de parquets base para CSV...")
                 
-                # A pasta 'parquet/base' faz parte da API e fica no diretório raiz do projeto (cnpj_processor)
-                # Independente de onde o comando é executado (ex: subpasta temp/)
-                api_root = os.path.dirname(os.path.abspath(__file__))
-                base_parquet_path = os.path.join(api_root, 'parquet', 'base')
+                # Os parquets base ficam dentro do pacote cnpj_processor/parquet/base
+                # Tentar primeiro o pacote instalado, depois a pasta do workspace
+                import cnpj_processor
+                package_base = os.path.join(os.path.dirname(cnpj_processor.__file__), 'parquet', 'base')
+                workspace_base = os.path.join(PATH_PARQUET, 'base')
                 
-                logger.info(f"📦 Pasta de parquets base da API: {base_parquet_path}")
+                # Verificar qual caminho existe
+                if os.path.exists(package_base):
+                    base_parquet_path = package_base
+                    logger.info(f"📦 Usando parquets base do pacote: {base_parquet_path}")
+                elif os.path.exists(workspace_base):
+                    base_parquet_path = workspace_base
+                    logger.info(f"📦 Usando parquets base do workspace: {base_parquet_path}")
+                else:
+                    base_parquet_path = package_base  # Default para mensagem de erro
+                    logger.info(f"📦 Pasta de parquets base: {base_parquet_path}")
                 
                 if not os.path.exists(base_parquet_path):
                     logger.warning(f"❌ Pasta de parquets base não encontrada: {base_parquet_path}")
@@ -1395,8 +1405,8 @@ async def _async_main_impl():
 def copy_parquet_base(output_parquet_path: str) -> bool:
     """
     Copia os arquivos parquet base da API para a pasta de saída.
-    Os arquivos base (cnae, motivo, municipio, etc.) ficam em parquet/base/
-    na raiz do projeto e são necessários para o processamento do painel.
+    Os arquivos base (cnae, motivo, municipio, etc.) ficam em cnpj_processor/parquet/base/
+    dentro do pacote instalado.
 
     Args:
         output_parquet_path: Pasta de destino dos parquets processados
@@ -1405,9 +1415,22 @@ def copy_parquet_base(output_parquet_path: str) -> bool:
         bool: True se ao menos um arquivo foi copiado com sucesso
     """
     import shutil
+    import cnpj_processor
 
-    api_root = os.path.dirname(os.path.abspath(__file__))
-    src_base = os.path.join(api_root, 'parquet', 'base')
+    # Buscar parquet/base do pacote instalado primeiro, depois do workspace
+    package_base = os.path.join(os.path.dirname(cnpj_processor.__file__), 'parquet', 'base')
+    workspace_base = os.path.join(PATH_PARQUET, 'base')
+    
+    # Verificar qual caminho existe
+    if os.path.exists(package_base):
+        src_base = package_base
+        logger.info(f"📦 Usando parquets base do pacote: {src_base}")
+    elif os.path.exists(workspace_base):
+        src_base = workspace_base
+        logger.info(f"📦 Usando parquets base do workspace: {src_base}")
+    else:
+        src_base = package_base  # Default para mensagem de erro
+    
     dst_base = os.path.join(output_parquet_path, 'base')
 
     if not os.path.exists(src_base):

@@ -16,6 +16,9 @@ recursive-include docs *.md *.py
 recursive-include src *.py
 recursive-include cnpj_processor *.py
 
+# Incluir arquivos parquet base (necessários para o processamento)
+recursive-include parquet/base *.parquet
+
 # Incluir arquivos de configuração
 include setup.py
 include pyproject.toml
@@ -28,10 +31,9 @@ global-exclude .DS_Store
 global-exclude *.so
 global-exclude *.dylib
 
-# Excluir diretórios de dados e cache
+# Excluir diretórios de dados e cache (mas manter parquet/base)
 prune dados-abertos
 prune dados-abertos-zip
-prune parquet
 prune logs
 prune test_env_351
 prune test_pypi_prod
