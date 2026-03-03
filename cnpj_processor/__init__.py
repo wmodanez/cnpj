@@ -17,6 +17,37 @@ Uso via CLI:
     cnpj-processor --help
     cnpj-processor --types empresas estabelecimentos
     cnpj-processor --step download --remote-folder 2024-05
+    
+    # Controlar concorrência de downloads e processamento
+    cnpj-processor --max-concurrent-downloads 5 --max-concurrent-processing 8
+    
+    # Forçar re-download
+    cnpj-processor --force-download
+    
+    # Pipeline completo com controle de concorrência
+    cnpj-processor --step all --max-concurrent-downloads 6 --max-concurrent-processing 4
+    
+Uso programático:
+    from cnpj_processor import download_multiple_files, CNPJProcessor
+    
+    # Download com controle de concorrência
+    files, failures = await download_multiple_files(
+        urls=urls,
+        path_zip='./dados-zip',
+        path_unzip='./dados-abertos',
+        path_parquet='./parquet',
+        force_download=True,
+        max_concurrent_downloads=5
+    )
+    
+    # Usar classe wrapper com controle de concorrência
+    processor = CNPJProcessor()
+    success, folder = processor.run(
+        step='all',
+        tipos=['empresas', 'estabelecimentos'],
+        max_concurrent_downloads=6,
+        max_concurrent_processing=4
+    )
 """
 
 # Importar versão da API
@@ -122,6 +153,8 @@ class CNPJProcessor:
             painel_incluir_inativos: bool = False,
             criar_empresa_privada: bool = False,
             criar_subset_uf: str = None,
+            max_concurrent_downloads: int = 3,
+            max_concurrent_processing: int = None,
             quiet: bool = False,
             log_level: str = 'INFO') -> tuple:
         """
@@ -147,6 +180,8 @@ class CNPJProcessor:
             painel_incluir_inativos: Incluir estabelecimentos inativos no painel
             criar_empresa_privada: Criar subconjunto de empresas privadas
             criar_subset_uf: Criar subconjunto por UF para estabelecimentos
+            max_concurrent_downloads: Número máximo de downloads simultâneos (padrão: 3)
+            max_concurrent_processing: Número máximo de processamentos simultâneos (padrão: automático)
             quiet: Modo silencioso (reduz saídas no console)
             log_level: Nível de logging ('DEBUG', 'INFO', 'WARNING', 'ERROR')
             
@@ -190,6 +225,14 @@ class CNPJProcessor:
             ...     painel_situacao=2,
             ...     remote_folder='2024-05'
             ... )
+            
+            >>> # Controlar concorrência de downloads e processamento
+            >>> success, folder = processor.run(
+            ...     step='all',
+            ...     tipos=['empresas', 'estabelecimentos'],
+            ...     max_concurrent_downloads=6,
+            ...     max_concurrent_processing=4
+            ... )
         """
         import sys
         import asyncio
@@ -228,6 +271,10 @@ class CNPJProcessor:
             sys.argv.append('--criar-empresa-privada')
         if criar_subset_uf:
             sys.argv.extend(['--criar-subset-uf', criar_subset_uf])
+        if max_concurrent_downloads != 3:
+            sys.argv.extend(['--max-concurrent-downloads', str(max_concurrent_downloads)])
+        if max_concurrent_processing is not None:
+            sys.argv.extend(['--max-concurrent-processing', str(max_concurrent_processing)])
         if quiet:
             sys.argv.append('--quiet')
         

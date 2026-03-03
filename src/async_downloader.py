@@ -1721,7 +1721,7 @@ async def download_multiple_files(
     path_unzip: str, 
     path_parquet: str, 
     force_download: bool = False,
-    max_concurrent_downloads: int = 6,
+    max_concurrent_downloads: int = 3,
     max_concurrent_processing: int = None,
     show_progress_bar: bool = False,
     show_pending_files: bool = False
@@ -1796,11 +1796,10 @@ async def download_multiple_files(
     logger.info("🔍 Executando análise detalhada dos recursos do sistema...")
     optimal_downloads, optimal_processing = get_optimal_concurrency(show_info=True)
     
-    # Usar os valores otimizados se não foram especificados
-    if max_concurrent_downloads == 6:  # Valor padrão
-        max_concurrent_downloads = optimal_downloads
     if max_concurrent_processing is None:
         max_concurrent_processing = optimal_processing
+    
+    logger.info(f"📊 Parâmetros de concorrência: downloads={max_concurrent_downloads}, processamento={max_concurrent_processing}")
     
     # Verificar conectividade de rede antes de iniciar
     logger.info("🌐 Conectividade verificada, iniciando downloads...")
@@ -2499,7 +2498,7 @@ async def download_only_files(
     urls: List[str], 
     path_zip: str, 
     force_download: bool = False,
-    max_concurrent_downloads: int = 6,
+    max_concurrent_downloads: int = 3,
     show_progress_bar: bool = False,
     show_pending_files: bool = False
 ) -> Tuple[List[str], List[Tuple[str, Exception]]]:

@@ -51,7 +51,7 @@ Cada step é composto pelos anteriores:
 
 === PROCESSAMENTO DO PAINEL ===
 12. Painel com filtros:
-    python main.py --processar-painel --painel-uf SP --painel-situacao 2
+    python main.py --processar-painel --painel-uf GO --painel-situacao 2
 
 === ECONOMIA DE ESPAÇO ===
 13. Remover ZIPs após extração:
@@ -519,6 +519,10 @@ async def _async_main_impl():
                          help='Filtrar painel por situação cadastral (1=Nula, 2=Ativa, 3=Suspensa, 4=Inapta, 8=Baixada)')
     parser.add_argument('--panel-include-inactive', action='store_true',
                          help='Incluir estabelecimentos inativos no painel')
+    parser.add_argument('--max-concurrent-downloads', type=int, metavar='N', default=3,
+                         help='Número máximo de downloads simultâneos (padrão: 3)')
+    parser.add_argument('--max-concurrent-processing', type=int, metavar='N', default=None,
+                         help='Número máximo de processamentos simultâneos (padrão: automático baseado em CPU/RAM)')
     parser.add_argument('--show-latest-folder', '--latest', action='store_true',
                          help='Exibir a pasta remota mais recente disponível e sair')
     parser.add_argument('--version', '-V', action='store_true',
@@ -1210,6 +1214,8 @@ async def _async_main_impl():
             base_url=base_url,
             delete_zips_after_extract=delete_artifacts,
             force_download=args.force_download,
+            max_concurrent_downloads=args.max_concurrent_downloads,
+            max_concurrent_processing=args.max_concurrent_processing,
             **processing_options
         )
         
@@ -1417,19 +1423,14 @@ def copy_parquet_base(output_parquet_path: str) -> bool:
     import shutil
     import cnpj_processor
 
-    # Buscar parquet/base do pacote instalado primeiro, depois do workspace
+    # Buscar parquet/base do pacote instalado
     package_base = os.path.join(os.path.dirname(cnpj_processor.__file__), 'parquet', 'base')
-    workspace_base = os.path.join(PATH_PARQUET, 'base')
+    src_base = package_base
     
-    # Verificar qual caminho existe
-    if os.path.exists(package_base):
-        src_base = package_base
+    if os.path.exists(src_base):
         logger.info(f"📦 Usando parquets base do pacote: {src_base}")
-    elif os.path.exists(workspace_base):
-        src_base = workspace_base
-        logger.info(f"📦 Usando parquets base do workspace: {src_base}")
     else:
-        src_base = package_base  # Default para mensagem de erro
+        logger.warning(f"⚠️  Pasta de parquets base não encontrada: {src_base}")
     
     dst_base = os.path.join(output_parquet_path, 'base')
 
@@ -1586,6 +1587,7 @@ async def optimized_download_and_process_pipeline(
     base_url: str,
     delete_zips_after_extract: bool = False,
     force_download: bool = False,
+    max_concurrent_downloads: int = 3,
     **processing_options
 ) -> dict:
     """
@@ -1608,12 +1610,12 @@ async def optimized_download_and_process_pipeline(
         logger.info(f"🎯 Processando {len(urls)} arquivo(s) local(is) pré-filtrado(s)")
     
     # Controlar concorrência
-    max_concurrent_downloads = 3  # Baseado no teste de rede
-    # ✅ CORREÇÃO 2: Aumentar limite de processamento paralelo
-    max_concurrent_processing = 4  # Permitir mais processamentos simultâneos
+    # max_concurrent_downloads é recebido como parâmetro (padrão: 3)
+    # max_concurrent_processing é recebido como parâmetro (padrão: None = automático)
+    if processing_options.get('max_concurrent_processing') is None:
+        processing_options['max_concurrent_processing'] = args.max_concurrent_processing
     
     download_semaphore = asyncio.Semaphore(max_concurrent_downloads)
-    process_semaphore = asyncio.Semaphore(max_concurrent_processing)  # Aumentado de 3 para 4
     
     # Listas para rastrear resultados
     successful_downloads = []
@@ -1654,14 +1656,7 @@ async def optimized_download_and_process_pipeline(
     
     logger.info(f"📊 Total de processadores criados: {len(processors)}")
     
-    # Usar configurações padrão de rede (teste foi removido para melhorar performance)
-    max_concurrent_downloads = 3
-    
     logger.info(f"🔧 Downloads simultâneos: {max_concurrent_downloads}")
-    
-    # Configurar semáforos
-    download_semaphore = asyncio.Semaphore(max_concurrent_downloads)
-    process_semaphore = asyncio.Semaphore(max_concurrent_processing)  # Aumentado de 3 para 4
     
     # Listas para rastreamento
     successful_downloads = []

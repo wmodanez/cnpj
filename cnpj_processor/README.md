@@ -172,8 +172,10 @@ processor.run(
 | `create_database` | bool | Criar banco DuckDB (padrão: False) |
 | `cleanup_after_db` | bool | Remover parquets após criar banco |
 | `keep_parquet_after_db` | bool | Manter parquets após criar banco |
-| `export_csv_base` | bool | **NOVO**: Exportar tabelas base da API para CSV (step csv) |
-| `export_parquet_base` | bool | **NOVO**: Copiar arquivos parquet base para pasta de saída (steps process/all) |
+| `export_csv_base` | bool | Exportar tabelas base da API para CSV (step csv) |
+| `export_parquet_base` | bool | Copiar arquivos parquet base para pasta de saída (steps process/all) |
+| `max_concurrent_downloads` | int | Número máximo de downloads simultâneos (padrão: 3) |
+| `max_concurrent_processing` | int | Número máximo de processamentos simultâneos (padrão: automático) |
 | `processar_painel` | bool | Processar painel consolidado |
 | `painel_uf` | str | Filtrar painel por UF |
 | `painel_situacao` | int | Filtrar por situação (1=Nula, 2=Ativa, 3=Suspensa, 4=Inapta, 8=Baixada) |
@@ -196,6 +198,51 @@ print(f"Pasta mais recente: {latest}")  # '2026-01'
 processor = CNPJProcessor()
 folders = processor.get_available_folders()
 print(f"Disponíveis: {folders}")  # ['2026-01', '2025-12', ...]
+```
+
+### Exemplos com Controle de Concorrência 🚀
+
+```python
+from cnpj_processor import CNPJProcessor
+
+processor = CNPJProcessor()
+
+# Modo conservador (conexão lenta)
+success, folder = processor.run(
+    step='all',
+    max_concurrent_downloads=2,
+    max_concurrent_processing=2
+)
+
+# Modo normal (padrão automático)
+success, folder = processor.run(
+    step='all',
+    max_concurrent_downloads=3,
+    max_concurrent_processing=4
+)
+
+# Modo agressivo (conexão rápida)
+success, folder = processor.run(
+    step='all',
+    max_concurrent_downloads=8,
+    max_concurrent_processing=6
+)
+
+# Apenas downloads com concorrência controlada
+success, folder = processor.run(
+    step='download',
+    tipos=['empresas', 'estabelecimentos'],
+    max_concurrent_downloads=5
+)
+
+# Processamento paralelo otimizado
+success, folder = processor.run(
+    step='process',
+    source_zip_folder='dados-abertos-zip/2026-01',
+    output_subfolder='processados',
+    max_concurrent_downloads=4,
+    max_concurrent_processing=8
+)
 ```
 
 ## 💡 Exemplos Práticos
@@ -398,6 +445,40 @@ success, folder = processor.run(
 
 O `cnpj-processor` também oferece interface completa de linha de comando:
 
+### Controle de Concorrência 🚀
+
+**Novo em 3.0.0**: Controle total sobre downloads e processamentos simultâneos!
+
+```bash
+# Controlar concorrência de downloads
+cnpj-processor --max-concurrent-downloads 5
+
+# Controlar concorrência de processamento
+cnpj-processor --max-concurrent-processing 8
+
+# Pipeline completo com concorrência customizada
+cnpj-processor --step all --max-concurrent-downloads 6 --max-concurrent-processing 4
+
+# Modo conservador (conexão lenta ou recursos limitados)
+cnpj-processor --max-concurrent-downloads 2 --max-concurrent-processing 2
+
+# Modo agressivo (conexão rápida e recursos abundantes)
+cnpj-processor --max-concurrent-downloads 10 --max-concurrent-processing 8
+```
+
+**Como funciona:**
+- `--max-concurrent-downloads N`: Número máximo de downloads simultâneos (padrão: 3)
+- `--max-concurrent-processing N`: Número máximo de processamentos simultâneos (padrão: automático)
+- Automático: Se não especificado, adapta-se aos recursos do sistema (CPU/RAM)
+
+**Recomendações:**
+- **Conexão lenta**: 2-3 downloads, 2 processamentos
+- **Conexão normal**: 3-4 downloads, 4-6 processamentos (padrão)
+- **Conexão rápida**: 5-8 downloads, 6-8 processamentos
+- **Servidor/VM**: Até 16 downloads e 12 processamentos
+
+### Exemplos de CLI
+
 ```bash
 # Pipeline completo
 cnpj-processor
@@ -478,6 +559,9 @@ cnpj-processor -k -D -K
 # Painel filtrado
 cnpj-processor --step painel --painel-uf GO --painel-situacao 2
 cnpj-processor -s painel --painel-uf GO --painel-situacao 2
+
+# Pipeline com concorrência controlada (atalho não disponível, use forma completa)
+cnpj-processor --max-concurrent-downloads 5 --max-concurrent-processing 4
 ```
 
 ## 📊 Estrutura de Dados
