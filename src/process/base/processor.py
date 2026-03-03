@@ -159,7 +159,7 @@ class BaseProcessor(ABC):
         valid_options = self.get_valid_options()
         
         # Adicionar opções globais válidas
-        global_valid_options = ['max_workers', 'delete_zips_after_extract']
+        global_valid_options = ['max_workers', 'delete_zips_after_extract', 'max_concurrent_processing']
         
         for option in self.options:
             if option not in valid_options and option not in global_valid_options:

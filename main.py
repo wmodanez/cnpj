@@ -1612,10 +1612,9 @@ async def optimized_download_and_process_pipeline(
     # Controlar concorrência
     # max_concurrent_downloads é recebido como parâmetro (padrão: 3)
     # max_concurrent_processing é recebido como parâmetro (padrão: None = automático)
-    if processing_options.get('max_concurrent_processing') is None:
-        processing_options['max_concurrent_processing'] = args.max_concurrent_processing
-    
-    download_semaphore = asyncio.Semaphore(max_concurrent_downloads)
+    # Se não foi fornecido, usa None (processamento automático)
+    if 'max_concurrent_processing' not in processing_options:
+        processing_options['max_concurrent_processing'] = None
     
     # Listas para rastrear resultados
     successful_downloads = []
@@ -1657,6 +1656,17 @@ async def optimized_download_and_process_pipeline(
     logger.info(f"📊 Total de processadores criados: {len(processors)}")
     
     logger.info(f"🔧 Downloads simultâneos: {max_concurrent_downloads}")
+    
+    # Criar semáforos para controlar concorrência
+    download_semaphore = asyncio.Semaphore(max_concurrent_downloads)
+    
+    # Obter max_concurrent_processing de processing_options
+    max_concurrent_proc = processing_options.get('max_concurrent_processing')
+    if max_concurrent_proc is None:
+        # Se não foi definido, usar valor automático baseado em CPU
+        import psutil
+        max_concurrent_proc = max(1, psutil.cpu_count(logical=False) // 2)
+    process_semaphore = asyncio.Semaphore(max_concurrent_proc)
     
     # Listas para rastreamento
     successful_downloads = []
@@ -1864,7 +1874,8 @@ async def optimized_download_and_process_pipeline(
         
         logger.info(f"🚀 Iniciando pipeline com {len(tasks)} arquivos...")
         logger.info("📊 Cada arquivo será processado assim que for verificado/baixado")
-        logger.info(f"⚙️ Configuração: máx {max_concurrent_downloads} downloads + máx {max_concurrent_processing} processamentos simultâneos")
+        max_concurrent_proc = processing_options.get('max_concurrent_processing')
+        logger.info(f"⚙️ Configuração: máx {max_concurrent_downloads} downloads + máx {max_concurrent_proc} processamentos simultâneos")
         
         # Executar todas as tasks em paralelo
         await asyncio.gather(*tasks, return_exceptions=True)
