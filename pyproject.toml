@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cnpj-processor"
-version = "4.4.3"
+version = "4.4.4"
 description = "Sistema de Processamento de Dados CNPJ da Receita Federal do Brasil"
 readme = "cnpj_processor/README.md"
 license = "MIT"
@@ -84,4 +84,4 @@ py-modules = ["main"]
 version = {attr = "cnpj_processor.__version__.__version__"}
 
 [tool.setuptools.package-data]
-"*" = ["*.txt", "*.md", "*.json", ".env.example", "*.parquet"]
+"*" = ["*.txt", "*.md", "*.json", ".env", ".env.example", ".env.cnpj-processor", "*.parquet"]

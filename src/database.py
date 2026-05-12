@@ -131,10 +131,10 @@ def create_duckdb_file(path_parquet_folder: str, file_db_parquet: str, path_remo
         logger.info(f"Banco de dados criado em {db_path}")
         logger.debug(f"Total de tabelas a criar: {len(parquet_files)}")
 
-        # Para cada pasta (simples, empresa, estabelecimento, etc.), cria uma tabela
+        # Para cada tabela (ou arquivo base individual), cria uma tabela
         success_count = 0
         for table_name, files in parquet_files.items():
-            logger.info(f"Criando tabela {table_name} com {len(files)} arquivos...")
+            logger.info(f"Criando tabela {table_name} com {len(files)} arquivo(s)...")
             logger.debug(f"Arquivos para tabela {table_name}: {files}")
 
             try:

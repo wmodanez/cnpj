@@ -50,6 +50,11 @@ Uso programático:
     )
 """
 
+# Importar e configurar ambiente PRIMEIRO (antes de outras importações)
+# Isso garante que .env é carregado e criado se necessário
+from src.utils.env_setup import load_env_with_defaults
+load_env_with_defaults(silent=True)
+
 # Importar versão da API
 from cnpj_processor.__version__ import (
     __version__,
@@ -101,7 +106,6 @@ from src.utils.global_circuit_breaker import (
     report_fatal_failure,
     register_stop_callback
 )
-from src.utils.env_setup import load_env_with_defaults
 from src.process.base.factory import ProcessorFactory
 
 # Classe principal wrapper

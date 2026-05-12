@@ -4,12 +4,18 @@ from typing import Dict, List, Type
 import polars as pl
 
 # Carregar variáveis de ambiente do arquivo .env
+# 1. Sempre tenta usar o sistema de env_setup que garante .env existe
 try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    # Se python-dotenv não estiver instalado, continuar sem carregar
-    pass
+    from src.utils.env_setup import load_env_with_defaults
+    load_env_with_defaults(silent=True)
+except (ImportError, Exception):
+    # Fallback: carregar usando python-dotenv diretamente
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        # Se python-dotenv não estiver instalado, continuar sem carregar
+        pass
 
 
 @dataclass
