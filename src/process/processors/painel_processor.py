@@ -26,6 +26,7 @@ import psutil
 from ...Entity.Painel import Painel
 from ...Entity.base import BaseEntity
 from ..base.processor import BaseProcessor
+from ...utils.files import resolve_entity_dir
 
 logger = logging.getLogger(__name__)
 
@@ -1061,9 +1062,9 @@ class PainelProcessor(BaseProcessor):
         try:
             # Verificar se há parquets já processados
             parquets_paths = {
-                'estabelecimento': self.estabelecimento_path or os.path.join(self.path_parquet, 'estabelecimento'),
+                'estabelecimento': self.estabelecimento_path or resolve_entity_dir(self.path_parquet, 'estabelecimentos', 'estabelecimento'),
                 'simples': self.simples_path or os.path.join(self.path_parquet, 'simples'),
-                'empresa': self.empresa_path or os.path.join(self.path_parquet, 'empresa')
+                'empresa': self.empresa_path or resolve_entity_dir(self.path_parquet, 'empresas', 'empresa')
             }
             
             parquets_existem = all(
@@ -1298,13 +1299,13 @@ class PainelProcessor(BaseProcessor):
         try:
             # Se caminhos já foram especificados, usar eles
             if not self.estabelecimento_path:
-                self.estabelecimento_path = os.path.join(self.path_parquet, 'estabelecimento')
+                self.estabelecimento_path = resolve_entity_dir(self.path_parquet, 'estabelecimentos', 'estabelecimento')
             
             if not self.simples_path:
                 self.simples_path = os.path.join(self.path_parquet, 'simples')
             
             if not self.empresa_path:
-                self.empresa_path = os.path.join(self.path_parquet, 'empresa')
+                self.empresa_path = resolve_entity_dir(self.path_parquet, 'empresas', 'empresa')
             
             # Verificar se todos os caminhos existem
             caminhos = [self.estabelecimento_path, self.simples_path, self.empresa_path]

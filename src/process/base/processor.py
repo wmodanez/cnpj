@@ -428,6 +428,10 @@ class BaseProcessor(ABC):
         names = lazy_df.collect_schema().names()
         return lazy_df.rename({name: f"column_{i}" for i, name in enumerate(names, 1)})
     
+    def get_output_folder_name(self) -> str:
+        """Nome da subpasta de saída da entidade (padrão: nome do processador em minúsculas)."""
+        return self.get_processor_name().lower()
+    
     def get_source_column_names(self) -> List[str]:
         """Colunas esperadas no CSV de origem (processadores podem sobrescrever)."""
         return self.get_entity_class().get_column_names()
@@ -537,7 +541,7 @@ class BaseProcessor(ABC):
                 return False
             
             # Criar subpasta por tipo de entidade
-            entity_folder = self.get_processor_name().lower()
+            entity_folder = self.get_output_folder_name()
             organized_output_path = os.path.join(output_path, entity_folder)
             
             # Garantir que o diretório existe
@@ -604,7 +608,7 @@ class BaseProcessor(ABC):
                 return False
             
             # Criar subpasta por tipo de entidade
-            entity_folder = self.get_processor_name().lower()
+            entity_folder = self.get_output_folder_name()
             organized_output_path = os.path.join(output_path, entity_folder)
             
             # Garantir que o diretório existe

@@ -18,7 +18,7 @@ import shutil
 import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 # Importações locais do projeto
 from ..config import config
@@ -57,9 +57,20 @@ def check_disk_space(path: str, required_mb: int) -> Tuple[bool, float]:
         return False, 0
 
 
-def file_extractor(folder_ori: str, folder_dest: str, filename: str = '*.*') -> None:
-    """Extrai arquivos ZIP usando processamento paralelo."""
+def file_extractor(
+    folder_ori: str,
+    folder_dest: str,
+    filename: str = '*.*',
+    only_files: Optional[List[str]] = None
+) -> None:
+    """Extrai arquivos ZIP usando processamento paralelo.
+
+    Se only_files for informado, extrai apenas esses nomes de arquivo (dentro de folder_ori).
+    """
     zip_file_list: List[str] = list(glob.glob(os.path.join(folder_ori, filename)))
+    if only_files is not None:
+        wanted = set(only_files)
+        zip_file_list = [f for f in zip_file_list if os.path.basename(f) in wanted]
 
     def extract_file(zip_path: str) -> None:
         try:
@@ -183,7 +194,21 @@ def delete_zip_after_extraction(zip_path: str, extracted_dir: str, verify_extrac
         return False
 
 
-def extract_zip_files(source_zip_path: str, unzip_path: str, delete_after: bool = False) -> bool:
+def resolve_entity_dir(base_path: str, plural: str, legacy: str) -> str:
+    """Pasta de uma entidade em base_path: usa o nome no plural e cai para o antigo (singular) se só ele existir."""
+    path = os.path.join(base_path, plural)
+    legacy_path = os.path.join(base_path, legacy)
+    if not os.path.exists(path) and os.path.exists(legacy_path):
+        return legacy_path
+    return path
+
+
+def extract_zip_files(
+    source_zip_path: str,
+    unzip_path: str,
+    delete_after: bool = False,
+    zip_files: Optional[List[str]] = None
+) -> bool:
     """
     Extrai arquivos ZIP de uma pasta para outra.
     Função wrapper de alto nível para pipeline de processamento.
@@ -193,6 +218,7 @@ def extract_zip_files(source_zip_path: str, unzip_path: str, delete_after: bool 
         source_zip_path: Pasta contendo arquivos ZIP
         unzip_path: Pasta de destino para extração
         delete_after: Se True, remove ZIPs após extração bem-sucedida
+        zip_files: Nomes dos ZIPs a extrair (None = todos da pasta)
         
     Returns:
         bool: True se extração foi bem-sucedida
@@ -203,7 +229,8 @@ def extract_zip_files(source_zip_path: str, unzip_path: str, delete_after: bool 
             logger.error(f"Pasta de origem não existe: {source_zip_path}")
             return False
             
-        zip_files = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')]
+        if zip_files is None:
+            zip_files = [f for f in os.listdir(source_zip_path) if f.endswith('.zip')]
         if not zip_files:
             logger.warning("Nenhum arquivo ZIP encontrado para extrair.")
             return True
@@ -213,7 +240,7 @@ def extract_zip_files(source_zip_path: str, unzip_path: str, delete_after: bool 
         
         # Usar função existente de extração paralela
         extract_start = time.time()
-        file_extractor(source_zip_path, unzip_path, '*.zip')
+        file_extractor(source_zip_path, unzip_path, '*.zip', only_files=zip_files)
         extract_time = time.time() - extract_start
         
         logger.info(f"✅ Extração concluída em {extract_time:.2f}s")
