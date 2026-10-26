@@ -571,10 +571,10 @@ cnpj-processor --max-concurrent-downloads 5 --max-concurrent-processing 4
 ```folder
 parquet/
 ├── 2026-01/                    # Pasta por período
-│   ├── empresa/               # Dados de empresas
-│   ├── estabelecimento/       # Dados de estabelecimentos
+│   ├── empresas/              # Dados de empresas
+│   ├── estabelecimentos/      # Dados de estabelecimentos
 │   ├── simples/              # Dados do Simples Nacional
-│   ├── socio/                # Dados de sócios
+│   ├── socios/               # Dados de sócios
 │   ├── painel_dados.parquet  # Painel consolidado
 │   └── cnpj.duckdb          # Banco de dados
 ```

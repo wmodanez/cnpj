@@ -35,6 +35,10 @@ class SocioProcessor(BaseProcessor):
         """Retorna o nome do processador."""
         return "SOCIO"
     
+    def get_output_folder_name(self) -> str:
+        """Subpasta de saída no plural, como os demais tipos (--types)."""
+        return "socios"
+    
     def get_entity_class(self) -> Type[BaseEntity]:
         """Retorna a classe de entidade associada."""
         return Socio

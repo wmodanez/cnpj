@@ -127,11 +127,11 @@ parquet/
 │   ├── municipio.parquet
 │   ├── motivo.parquet
 │   └── natureza_juridica.parquet
-├── estabelecimento/
+├── estabelecimentos/
 │   └── *.parquet
 ├── simples/
 │   └── *.parquet
-└── empresa/
+└── empresas/
     └── *.parquet
 ```
 
@@ -140,9 +140,9 @@ parquet/
 ```folder
 parquet/
 ├── base/
-├── estabelecimento/
+├── estabelecimentos/
 ├── simples/
-├── empresa/
+├── empresas/
 └── painel_dados.parquet  ← NOVO ARQUIVO GERADO
 ```
 
@@ -154,7 +154,7 @@ parquet/
    python main.py --types empresas estabelecimentos simples
    ```
 
-2. **Estrutura de pastas**: Certifique-se de que as pastas `estabelecimento/`, `simples/` e `empresa/` existem dentro de `parquet/`
+2. **Estrutura de pastas**: Certifique-se de que as pastas `estabelecimentos/`, `simples/` e `empresas/` existem dentro de `parquet/`
 
 3. **Dados de base**: Os arquivos `municipio.parquet`, `motivo.parquet` e `natureza_juridica.parquet` devem estar em `parquet/base/`
 

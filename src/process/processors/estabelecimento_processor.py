@@ -42,6 +42,10 @@ class EstabelecimentoProcessor(BaseProcessor):
         """Retorna o nome do processador."""
         return "ESTABELECIMENTO"
     
+    def get_output_folder_name(self) -> str:
+        """Subpasta de saída no plural, como os demais tipos (--types)."""
+        return "estabelecimentos"
+    
     def get_entity_class(self) -> Type[BaseEntity]:
         """Retorna a classe de entidade associada."""
         return Estabelecimento
@@ -286,7 +290,7 @@ class EstabelecimentoProcessor(BaseProcessor):
                 return True
             
             # Criar subpasta para subsets UF dentro da pasta da entidade
-            entity_folder = self.get_processor_name().lower()
+            entity_folder = self.get_output_folder_name()
             base_output_path = os.path.join(output_path, entity_folder)
             uf_output_path = os.path.join(base_output_path, f"uf_{uf.lower()}")
             os.makedirs(uf_output_path, exist_ok=True)
@@ -434,10 +438,9 @@ class EstabelecimentoProcessor(BaseProcessor):
             self.logger.info(f"Processando arquivo em chunks: {os.path.basename(data_file_path)}")
             
             chunk_counter = 0
-            uf_chunks = []  # Para acumular chunks da UF
             
             # Criar subpasta por tipo de entidade (padrão do sistema)
-            entity_folder = self.get_processor_name().lower()
+            entity_folder = self.get_output_folder_name()
             organized_output_path = os.path.join(output_dir, entity_folder)
             os.makedirs(organized_output_path, exist_ok=True)
             
@@ -483,16 +486,10 @@ class EstabelecimentoProcessor(BaseProcessor):
                 chunk_df.write_parquet(chunk_path, compression='snappy')
                 chunk_counter += 1
                 
-                # Se filtrou por UF, acumular para subset final
-                if uf_subset and chunk_df.height > 0:
-                    uf_chunks.append(chunk_df)
-                
                 self.logger.debug(f"Chunk {i+1}/{num_chunks} salvo: {entity_folder}/{chunk_filename} ({chunk_df.height} linhas)")
             
-            # Criar subset por UF se solicitado e há dados
-            if uf_subset and uf_chunks:
-                combined_uf = pl.concat(uf_chunks, how="vertical_relaxed")
-                self.create_uf_subset(combined_uf, output_dir, zip_prefix, uf_subset)
+            # Com uf_subset os chunks acima já foram filtrados pela UF, então não é
+            # necessário gerar uma cópia em uf_<uf>/ (create_uf_subset segue disponível)
             
             self.logger.info(f"Processamento em chunks concluído: {chunk_counter} chunks em {entity_folder}/")
             return chunk_counter

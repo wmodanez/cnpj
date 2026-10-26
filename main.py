@@ -149,6 +149,7 @@ from cnpj_processor import global_stats
 
 # Importar funções utilitárias refatoradas
 from src.utils import ensure_files_downloaded, extract_zip_files
+from src.utils.files import resolve_entity_dir
 
 # Configurar logger global
 logger = logging.getLogger(__name__)
@@ -765,7 +766,7 @@ async def _async_main_impl():
         
         # 2. Extrair arquivos
         print_section("2.2: Extraindo arquivos")
-        extract_success = extract_zip_files(source_zip_path, PATH_UNZIP, args.delete_zips_after_extract)
+        extract_success = extract_zip_files(source_zip_path, PATH_UNZIP, args.delete_zips_after_extract, zip_files)
         
         if not extract_success:
             return False, ""
@@ -1041,7 +1042,7 @@ async def _async_main_impl():
         
         # 2. Extrair arquivos
         print_section("3.2: Extraindo arquivos")
-        extract_success = extract_zip_files(source_zip_path, PATH_UNZIP, args.delete_zips_after_extract)
+        extract_success = extract_zip_files(source_zip_path, PATH_UNZIP, args.delete_zips_after_extract, zip_files)
         
         if not extract_success:
             return False, ""
@@ -1076,7 +1077,8 @@ async def _async_main_impl():
             tipos_a_processar=tipos_a_processar,
             base_url=base_url,
             delete_zips_after_extract=False,  # Já foi extraído
-            force_download=False  # Já foi baixado
+            force_download=False,  # Já foi baixado
+            **build_processing_options(args)
         )
         process_time = time.time() - process_start_time
 
@@ -1191,13 +1193,7 @@ async def _async_main_impl():
         tipos_a_processar = args.tipos if args.tipos else ['empresas', 'estabelecimentos', 'simples', 'socios']
         
         # Preparar opções de processamento
-        processing_options = {}
-        if hasattr(args, 'create_private_subset') and args.create_private_subset:
-            processing_options['create_private'] = True
-        if hasattr(args, 'create_uf_subset') and args.create_uf_subset:
-            processing_options['uf_subset'] = args.create_uf_subset
-        if getattr(args, 'all_columns', False):
-            processing_options['all_columns'] = True
+        processing_options = build_processing_options(args)
 
         # 🆕 Executar pipeline otimizado unificado (download + processamento em paralelo)
         print_section("Pipeline Otimizado: Download e Processamento Paralelo")
@@ -1507,9 +1503,9 @@ def process_painel_complete(source_zip_path: str, unzip_path: str, output_parque
         else:
             source_data_path = output_parquet_path
             
-        estabelecimento_path = os.path.join(source_data_path, 'estabelecimento')
+        estabelecimento_path = resolve_entity_dir(source_data_path, 'estabelecimentos', 'estabelecimento')
         simples_path = os.path.join(source_data_path, 'simples') 
-        empresa_path = os.path.join(source_data_path, 'empresa')
+        empresa_path = resolve_entity_dir(source_data_path, 'empresas', 'empresa')
         
         logger.info(f"Procurando dados em:")
         logger.info(f"  📁 Estabelecimentos: {estabelecimento_path}")
@@ -1583,6 +1579,18 @@ def process_painel_complete(source_zip_path: str, unzip_path: str, output_parque
     except Exception as e:
         logger.error(f"Erro no processamento do painel: {e}")
         return False
+
+def build_processing_options(args) -> dict:
+    """Opções repassadas aos processadores a partir dos argumentos da CLI."""
+    processing_options = {}
+    if getattr(args, 'create_private_subset', False):
+        processing_options['create_private'] = True
+    if getattr(args, 'create_uf_subset', None):
+        processing_options['uf_subset'] = args.create_uf_subset
+    if getattr(args, 'all_columns', False):
+        processing_options['all_columns'] = True
+    return processing_options
+
 
 async def optimized_download_and_process_pipeline(
     urls: List[str], 
