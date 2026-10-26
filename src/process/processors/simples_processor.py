@@ -300,17 +300,10 @@ class SimplesProcessor(BaseProcessor):
             chunk_counter = 0
             
             # Usar scan_csv para processamento lazy
-            lazy_df = pl.scan_csv(
-                data_file_path,
-                separator=';',
-                has_header=False,
-                encoding='utf8-lossy',
-                ignore_errors=True,
-                truncate_ragged_lines=True
-            )
+            lazy_df = self.scan_source_csv(data_file_path)
             
             # Processar em batches
-            total_rows = lazy_df.select(pl.count()).collect().item()
+            total_rows = lazy_df.select(pl.len()).collect().item()
             num_chunks = (total_rows + chunk_size - 1) // chunk_size
             
             self.logger.info(f"Total de linhas: {total_rows}, Chunks: {num_chunks}")

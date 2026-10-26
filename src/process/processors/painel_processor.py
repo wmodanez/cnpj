@@ -318,9 +318,9 @@ class PainelProcessor(BaseProcessor):
                 )
                 
                 # Contar registros sem carregar tudo
-                estabelecimentos_count = estabelecimentos_scan.select(pl.count()).collect().item()
-                simples_count = simples_scan.select(pl.count()).collect().item()
-                empresas_count = empresas_scan.select(pl.count()).collect().item()
+                estabelecimentos_count = estabelecimentos_scan.select(pl.len()).collect().item()
+                simples_count = simples_scan.select(pl.len()).collect().item()
+                empresas_count = empresas_scan.select(pl.len()).collect().item()
                 
                 self.logger.info(f"✓ Scans criados:")
                 self.logger.info(f"  └─ Estabelecimentos: {estabelecimentos_count:,} registros")
@@ -767,7 +767,7 @@ class PainelProcessor(BaseProcessor):
                         chunk_size = 1_000_000  # 1 milhão de registros por chunk
                         
                         # Primeiro, contar total de registros
-                        total_rows = painel_scan.select(pl.count()).collect().item()
+                        total_rows = painel_scan.select(pl.len()).collect().item()
                         self.logger.info(f"  └─ Total de registros a processar: {total_rows:,}")
                         
                         # Processar em chunks
@@ -818,7 +818,7 @@ class PainelProcessor(BaseProcessor):
                     # Contar registros apenas se arquivo não for muito grande (para evitar problemas de memória)
                     if file_size < 1000:  # Menos de 1GB
                         try:
-                            total_rows = pl.scan_parquet(output_path).select(pl.count()).collect().item()
+                            total_rows = pl.scan_parquet(output_path).select(pl.len()).collect().item()
                             self.logger.info(f"📈 Total de registros: {total_rows:,}")
                         except Exception as e:
                             self.logger.warning(f"Não foi possível contar registros: {str(e)}")
@@ -876,7 +876,7 @@ class PainelProcessor(BaseProcessor):
             # Estatísticas de opção pelo Simples Nacional
             if 'opcao_simples' in df.columns:
                 simples_stats = df.group_by('opcao_simples').agg([
-                    pl.count().alias('count')
+                    pl.len().alias('count')
                 ]).sort('count', descending=True)
                 
                 self.logger.info("Opção pelo Simples Nacional:")
@@ -888,7 +888,7 @@ class PainelProcessor(BaseProcessor):
             # Estatísticas de opção pelo MEI
             if 'opcao_mei' in df.columns:
                 mei_stats = df.group_by('opcao_mei').agg([
-                    pl.count().alias('count')
+                    pl.len().alias('count')
                 ]).sort('count', descending=True)
                 
                 self.logger.info("Opção pelo MEI:")
@@ -900,7 +900,7 @@ class PainelProcessor(BaseProcessor):
             # Estatísticas de matriz/filial
             if 'matriz_filial' in df.columns:
                 matriz_filial_stats = df.group_by('matriz_filial').agg([
-                    pl.count().alias('count')
+                    pl.len().alias('count')
                 ]).sort('count', descending=True)
                 
                 self.logger.info("Tipo de estabelecimento:")
@@ -912,7 +912,7 @@ class PainelProcessor(BaseProcessor):
             # Estatísticas de situação cadastral
             if 'codigo_situacao' in df.columns:
                 situacao_stats = df.group_by('codigo_situacao').agg([
-                    pl.count().alias('count')
+                    pl.len().alias('count')
                 ]).sort('count', descending=True)
                 
                 self.logger.info("Situação cadastral:")
@@ -925,7 +925,7 @@ class PainelProcessor(BaseProcessor):
             # Estatísticas de porte da empresa
             if 'porte_empresa' in df.columns:
                 porte_stats = df.group_by('porte_empresa').agg([
-                    pl.count().alias('count')
+                    pl.len().alias('count')
                 ]).sort('count', descending=True)
                 
                 self.logger.info("Porte da empresa:")
@@ -1458,7 +1458,7 @@ def analisar_painel(caminho_parquet: str):
         # Estatísticas de opção pelo Simples Nacional
         if 'opcao_simples' in df.columns:
             simples_stats = df.group_by('opcao_simples').agg([
-                pl.count().alias('count')
+                pl.len().alias('count')
             ])
             
             print("\nOpção pelo Simples Nacional:")
@@ -1470,7 +1470,7 @@ def analisar_painel(caminho_parquet: str):
         # Estatísticas de porte
         if 'porte_empresa' in df.columns:
             porte_stats = df.group_by('porte_empresa').agg([
-                pl.count().alias('count')
+                pl.len().alias('count')
             ])
             
             print("\nPorte da empresa:")

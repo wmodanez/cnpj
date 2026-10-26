@@ -232,7 +232,7 @@ class ProcessorFactory:
             
             # Validar opções fornecidas
             for option in kwargs:
-                if option not in valid_options and option not in ['max_workers']:
+                if option not in valid_options and option not in ['max_workers', 'all_columns']:
                     errors.append(f"Opção '{option}' não é válida para processador '{processor_type}'")
             
             # Validações específicas por tipo

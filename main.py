@@ -74,6 +74,7 @@ PARÂMETROS PRINCIPAIS:
 - --output-subfolder: Subpasta de saída para parquets
 - --output-csv-folder: Pasta de saída para CSVs normalizados (step csv)
 - --export-csv-base: Exportar base de dados em CSV (step csv)
+- --all-columns: Estabelecimentos com todas as 30 colunas (Parquet e CSV)
 - --force-download: Forçar re-download
 - --delete-zips-after-extract: Remover ZIPs após extração
 - --create-database: Criar DuckDB após processamento
@@ -481,6 +482,8 @@ async def _async_main_impl():
                          help='Criar subconjunto de empresas privadas (apenas para empresas)')
     parser.add_argument('--create-uf-subset', '-U', type=str, metavar='UF',
                          help='Criar subconjunto por UF (apenas para estabelecimentos). Ex: --create-uf-subset SP')
+    parser.add_argument('--all-columns', action='store_true', dest='all_columns',
+                         help='Estabelecimentos: manter todas as 30 colunas do arquivo da Receita (endereço, telefones, e-mail etc.) nos Parquet e CSV. Por padrão salva apenas um subconjunto')
     parser.add_argument('--output-subfolder', '-o', type=str,
                          help='Nome da subpasta onde salvar os arquivos parquet. Use "." para pasta raiz')
     parser.add_argument('--output-csv-folder', type=str,
@@ -856,7 +859,8 @@ async def _async_main_impl():
                         source_zip_path,
                         PATH_UNZIP,
                         tipo_csv_output_path,
-                        delete_zips_after_extract=False
+                        delete_zips_after_extract=False,
+                        **({'all_columns': True} if args.all_columns and tipo_key == 'estabelecimento' else {})
                     )
                     
                     # Extrair e processar
@@ -1192,7 +1196,9 @@ async def _async_main_impl():
             processing_options['create_private'] = True
         if hasattr(args, 'create_uf_subset') and args.create_uf_subset:
             processing_options['uf_subset'] = args.create_uf_subset
-        
+        if getattr(args, 'all_columns', False):
+            processing_options['all_columns'] = True
+
         # 🆕 Executar pipeline otimizado unificado (download + processamento em paralelo)
         print_section("Pipeline Otimizado: Download e Processamento Paralelo")
         pipeline_start_time = time.time()
