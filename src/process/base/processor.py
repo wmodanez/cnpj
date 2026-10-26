@@ -159,7 +159,7 @@ class BaseProcessor(ABC):
         valid_options = self.get_valid_options()
         
         # Adicionar opções globais válidas
-        global_valid_options = ['max_workers', 'delete_zips_after_extract', 'max_concurrent_processing']
+        global_valid_options = ['max_workers', 'delete_zips_after_extract', 'max_concurrent_processing', 'all_columns']
         
         for option in self.options:
             if option not in valid_options and option not in global_valid_options:
@@ -409,6 +409,29 @@ class BaseProcessor(ABC):
             self.logger.warning(f"Erro ao aplicar transformação '{transformation}': {str(e)}")
             return df
     
+    def scan_source_csv(self, data_file_path: str, **scan_kwargs) -> pl.LazyFrame:
+        """
+        Lê o CSV da Receita (sem cabeçalho) com colunas column_1..column_N.
+        
+        A numeração automática do polars mudou entre versões (column_1 vs column_0),
+        então as colunas são renomeadas explicitamente a partir de 1.
+        """
+        lazy_df = pl.scan_csv(
+            data_file_path,
+            separator=';',
+            has_header=False,
+            encoding='utf8-lossy',
+            ignore_errors=True,
+            truncate_ragged_lines=True,
+            **scan_kwargs
+        )
+        names = lazy_df.collect_schema().names()
+        return lazy_df.rename({name: f"column_{i}" for i, name in enumerate(names, 1)})
+    
+    def get_source_column_names(self) -> List[str]:
+        """Colunas esperadas no CSV de origem (processadores podem sobrescrever)."""
+        return self.get_entity_class().get_column_names()
+
     def process_data_file(self, data_path: str) -> Optional[pl.DataFrame]:
         """
         Processa um único arquivo de dados (CSV).
@@ -423,8 +446,8 @@ class BaseProcessor(ABC):
         """
         try:
             entity_class = self.get_entity_class()
-            all_columns = entity_class.get_column_names()
-            
+            all_columns = self.get_source_column_names()
+
             # Para empresas, o cpf_extraido é calculado, não vem do CSV
             if hasattr(entity_class, '__name__') and entity_class.__name__ == 'Empresa':
                 csv_columns = [col for col in all_columns if col != 'cpf_extraido']
@@ -453,7 +476,6 @@ class BaseProcessor(ABC):
                         ignore_errors=True,
                         quote_char='"',  # Definir aspas duplas como caractere de citação
                         null_values=["", "NULL", "null", "00000000"],
-                        missing_utf8_is_empty_string=True,
                         try_parse_dates=False,  # IMPORTANTE: Não fazer parse automático de datas
                         truncate_ragged_lines=True,
                         schema={col: pl.Utf8 for col in column_names}  # CORRIGIDO: Usar schema em vez de dtypes

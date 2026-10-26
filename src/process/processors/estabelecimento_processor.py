@@ -48,8 +48,30 @@ class EstabelecimentoProcessor(BaseProcessor):
     
     def get_valid_options(self) -> List[str]:
         """Retorna opções válidas para este processador."""
-        return ['uf_subset']  # Funcionalidade específica de estabelecimentos
+        return ['uf_subset', 'all_columns']
     
+    @property
+    def keep_all_columns(self) -> bool:
+        """True se a opção all_columns pede todas as colunas do CSV da Receita."""
+        return bool(self.options.get('all_columns', False))
+
+    def get_source_column_names(self) -> List[str]:
+        """O CSV de origem sempre tem 30 colunas; o mapeamento escolhe quais ficam."""
+        return [f"column_{i}" for i in range(1, Estabelecimento.CSV_COLUMN_COUNT + 1)]
+
+    def get_column_mapping(self, df: pl.DataFrame) -> dict:
+        """Mapeamento padrão, acrescido das colunas extras quando all_columns."""
+        mapping = super().get_column_mapping(df)
+        if not self.keep_all_columns:
+            return mapping
+
+        for position, name in Estabelecimento.EXTRA_CSV_COLUMNS.items():
+            if f'column_{position}' in df.columns:
+                mapping[f'column_{position}'] = name
+
+        # Manter a ordem das colunas do CSV original
+        return dict(sorted(mapping.items(), key=lambda item: int(item[0].split('_')[1])))
+
     def apply_specific_transformations(self, df: pl.DataFrame) -> pl.DataFrame:
         """
         Aplica transformações específicas de estabelecimentos.
@@ -420,17 +442,16 @@ class EstabelecimentoProcessor(BaseProcessor):
             os.makedirs(organized_output_path, exist_ok=True)
             
             # Usar scan_csv para processamento lazy
-            lazy_df = pl.scan_csv(
-                data_file_path,
-                separator=';',
-                has_header=False,
-                encoding='utf8-lossy',
-                ignore_errors=True,
-                truncate_ragged_lines=True
-            )
+            scan_kwargs = {}
+            if self.keep_all_columns:
+                # Tudo como texto: preserva zeros à esquerda em DDD, telefone, número etc.
+                # Os tipos das colunas conhecidas são convertidos em apply_entity_transformations
+                scan_kwargs['infer_schema_length'] = 0
+
+            lazy_df = self.scan_source_csv(data_file_path, **scan_kwargs)
             
             # Processar em batches
-            total_rows = lazy_df.select(pl.count()).collect().item()
+            total_rows = lazy_df.select(pl.len()).collect().item()
             num_chunks = (total_rows + chunk_size - 1) // chunk_size
             
             self.logger.info(f"Total de linhas: {total_rows}, Chunks: {num_chunks}")

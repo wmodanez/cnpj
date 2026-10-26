@@ -73,6 +73,32 @@ class Estabelecimento(BaseEntity):
             'codigo_cnae', 'cnae_secundaria', 'uf', 'codigo_municipio', 'cep', 'cnpj_completo'
         ]
     
+    # Colunas do CSV da Receita que só são mantidas com a opção all_columns.
+    # Mapeia posição (1-based) no CSV -> nome da coluna. Todas são texto.
+    EXTRA_CSV_COLUMNS = {
+        10: 'pais',
+        14: 'tipo_logradouro',
+        15: 'logradouro',
+        16: 'numero',
+        17: 'complemento',
+        18: 'bairro',
+        22: 'ddd1',
+        23: 'telefone1',
+        24: 'ddd2',
+        25: 'telefone2',
+        26: 'ddd_fax',
+        27: 'fax',
+        28: 'correio_eletronico',
+        29: 'situacao_especial',
+        30: 'data_situacao_especial',
+    }
+    CSV_COLUMN_COUNT = 30
+
+    @classmethod
+    def get_extra_column_names(cls) -> List[str]:
+        """Retorna nomes das colunas extras (mantidas apenas com all_columns)."""
+        return list(cls.EXTRA_CSV_COLUMNS.values())
+
     @classmethod
     def get_column_types(cls) -> Dict[str, Type]:
         """Retorna tipos das colunas da entidade."""
