@@ -2,9 +2,9 @@
 Módulo para inicialização e configuração do ambiente CNPJ Processor.
 
 Estratégia de carregamento de .env:
-- Primeiro, verifica se existe .env no diretório de trabalho atual
-- Se não existir, copia o .env.example ou cria um com valores padrão
-- Isso garante que o usuário final sempre tem o .env necessário
+- Carrega CNPJ_PROCESSOR_ENV_FILE ou o .env do diretório de trabalho, se existir
+- Valores padrão são aplicados em memória; nenhum .env é criado automaticamente
+  (ensure_local_env_file continua disponível para uso explícito)
 """
 import os
 import shutil
@@ -145,25 +145,25 @@ def get_default_env_vars() -> dict:
 
 def load_env_with_defaults(working_dir: str = None, silent: bool = True):
     """
-    Carrega o .env local (ou cria um se não existir) e configura as variáveis de ambiente.
-    
+    Carrega o .env (se existir) e configura as variáveis de ambiente.
+
     Estratégia:
-    1. Garante que existe .env no diretório de trabalho
-    2. Carrega as variáveis usando python-dotenv
-    3. Define defaults para variáveis que faltam
+    1. Carrega CNPJ_PROCESSOR_ENV_FILE ou o .env do diretório de trabalho, se existir
+    2. Define defaults em memória para variáveis que faltam
+    Não cria nem sobrescreve nenhum arquivo .env.
     
     Args:
         working_dir: Diretório de trabalho (não utilizado, mantido para compatibilidade)
         silent: Se True (padrão), não exibe mensagens informativas
     """
     from dotenv import load_dotenv
-    
-    # 1. Garantir que o .env local existe
-    ensure_local_env_file()
-    
-    # 2. Carregar .env local
-    local_env = get_local_env_path()
-    if local_env.exists():
+
+    # 1. Carregar .env explícito (CNPJ_PROCESSOR_ENV_FILE) ou o do cwd, se existir.
+    # Nunca cria nem altera arquivos .env: esta função roda no import do pacote e
+    # o cwd pode pertencer a uma aplicação host que não tem relação com o pacote.
+    explicit_env = os.getenv('CNPJ_PROCESSOR_ENV_FILE')
+    local_env = Path(explicit_env) if explicit_env else get_local_env_path()
+    if local_env.is_file():
         load_dotenv(local_env, override=False)
     
     # 3. Garantir que variables críticas estão definidas

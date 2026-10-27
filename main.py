@@ -2016,4 +2016,5 @@ def cleanup_after_database(parquet_folder: str, zip_folder: str = "", cleanup_pa
         return False
 
 if __name__ == '__main__':
-    main()  # Executar sem imprimir o retorno
+    _result = main()
+    sys.exit(0 if (not isinstance(_result, tuple) or _result[0]) else 1)
