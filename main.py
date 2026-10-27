@@ -332,20 +332,19 @@ def check_parquet_completeness(output_parquet_path: str, tipos_processados: List
     try:
         logger.info("🔍 Verificando integridade dos arquivos parquet gerados...")
         
-        # Mapeamento de tipos para nomes de diretórios
-        tipo_to_folder = {
+        # Pastas gravadas pelos processadores (plural); o singular antigo é aceito como fallback
+        tipo_to_legacy_folder = {
             'empresas': 'empresa',
-            'estabelecimentos': 'estabelecimento', 
+            'estabelecimentos': 'estabelecimento',
             'simples': 'simples',
             'socios': 'socio'
         }
-        
+
         tipos_faltando = []
         tipos_verificados = []
-        
+
         for tipo in tipos_processados:
-            folder_name = tipo_to_folder.get(tipo, tipo)
-            parquet_path = os.path.join(output_parquet_path, folder_name)
+            parquet_path = resolve_entity_dir(output_parquet_path, tipo, tipo_to_legacy_folder.get(tipo, tipo))
             
             # Verificar se o diretório existe
             if not os.path.exists(parquet_path):
@@ -652,6 +651,7 @@ async def _async_main_impl():
             
             # Extrair nome da pasta para usar como output
             folder_name = os.path.basename(source_zip_path.rstrip('/\\'))
+            remote_folder = folder_name
         else:
             # Tentar determinar a pasta mais recente ou usar --remote-folder
             if args.remote_folder:
@@ -674,8 +674,9 @@ async def _async_main_impl():
                     logger.error("Use --source-zip-folder para especificar os dados a processar")
                     return False, ""
 
+            remote_folder = remote_folder_painel
             source_zip_path = os.path.join(PATH_ZIP, remote_folder)
-        
+
         # Definir pasta de saída
         if args.output_subfolder == ".":
             # Usar "." para pasta raiz
@@ -1490,19 +1491,9 @@ def process_painel_complete(source_zip_path: str, unzip_path: str, output_parque
         start_time = time.time()
         
         # Definir caminhos dos parquets das entidades individuais
-        # Se especificado remote_folder, buscar dados na pasta remota
-        if remote_folder:
-            # Obter PATH_PARQUET do contexto global
-            import os
-            from pathlib import Path
-            
-            # Obter pasta parquet do contexto
-            current_dir = Path(__file__).parent
-            parquet_base = current_dir / "parquet"
-            source_data_path = os.path.join(str(parquet_base), remote_folder)
-        else:
-            source_data_path = output_parquet_path
-            
+        # Os parquets das entidades ficam em output_parquet_path (PATH_PARQUET/<competência>)
+        source_data_path = output_parquet_path
+
         estabelecimento_path = resolve_entity_dir(source_data_path, 'estabelecimentos', 'estabelecimento')
         simples_path = os.path.join(source_data_path, 'simples') 
         empresa_path = resolve_entity_dir(source_data_path, 'empresas', 'empresa')
