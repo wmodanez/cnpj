@@ -1491,17 +1491,9 @@ def process_painel_complete(source_zip_path: str, unzip_path: str, output_parque
         
         # Definir caminhos dos parquets das entidades individuais
         # Se especificado remote_folder, buscar dados na pasta remota
-        if remote_folder:
-            # Obter PATH_PARQUET do contexto global
-            import os
-            from pathlib import Path
-            
-            # Obter pasta parquet do contexto
-            current_dir = Path(__file__).parent
-            parquet_base = current_dir / "parquet"
-            source_data_path = os.path.join(str(parquet_base), remote_folder)
-        else:
-            source_data_path = output_parquet_path
+        # output_parquet_path já é resolvido a partir do cwd (PATH_PARQUET/remote_folder),
+        # o mesmo local onde as etapas anteriores salvaram os parquets
+        source_data_path = output_parquet_path
             
         estabelecimento_path = resolve_entity_dir(source_data_path, 'estabelecimentos', 'estabelecimento')
         simples_path = os.path.join(source_data_path, 'simples') 
@@ -2025,4 +2017,5 @@ def cleanup_after_database(parquet_folder: str, zip_folder: str = "", cleanup_pa
         return False
 
 if __name__ == '__main__':
-    main()  # Executar sem imprimir o retorno
+    _result = main()
+    sys.exit(0 if (not isinstance(_result, tuple) or _result[0]) else 1)

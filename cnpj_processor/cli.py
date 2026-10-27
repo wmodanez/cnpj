@@ -23,7 +23,11 @@ def main():
         # Importar a função main do arquivo principal
         # O arquivo main.py deve estar no mesmo nível que o pacote cnpj_processor
         import main
-        return main.main()
+        result = main.main()
+        # main.main() retorna (sucesso, pasta); sys.exit(tupla) resultaria em exit code 1
+        if isinstance(result, tuple):
+            result = result[0] if result else False
+        return 0 if result is None or result is True else (1 if result is False else result)
     except ImportError as e:
         print(f"Erro ao importar módulo principal: {e}")
         print(f"Certifique-se de que o arquivo main.py está acessível no PYTHONPATH")
